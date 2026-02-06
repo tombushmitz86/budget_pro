@@ -3,9 +3,12 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { GoalsProvider } from './context/GoalsContext';
+import { N26ConnectionProvider } from './context/N26ConnectionContext';
+import { DataSourceProvider } from './context/DataSourceContext';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Goals } from './pages/Goals';
+import { N26ConnectCallback } from './pages/N26ConnectCallback';
 import { Budgets } from './pages/Budgets';
 import { Plan } from './pages/Plan';
 import { Assets } from './pages/Assets';
@@ -33,6 +36,8 @@ const App: React.FC = () => {
   return (
     <CurrencyProvider>
     <GoalsProvider>
+    <N26ConnectionProvider>
+    <DataSourceProvider>
     <Router>
       <Layout>
         <Routes>
@@ -41,6 +46,7 @@ const App: React.FC = () => {
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/plan" element={<Plan />} />
           <Route path="/goals" element={<Goals />} />
+          <Route path="/connect/n26/callback" element={<N26ConnectCallback />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/assets" element={<Assets />} />
           <Route path="/settings" element={<Settings />} />
@@ -49,6 +55,8 @@ const App: React.FC = () => {
         </Routes>
       </Layout>
     </Router>
+    </DataSourceProvider>
+    </N26ConnectionProvider>
     </GoalsProvider>
     </CurrencyProvider>
   );

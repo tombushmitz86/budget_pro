@@ -1,23 +1,48 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TRANSACTIONS, PAYMENT_METHODS } from '../constants';
-import { Transaction, PaymentMethod } from '../types';
+import { Transaction, PaymentMethod, Category } from '../types';
 import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
+import { useN26Connection } from '../context/N26ConnectionContext';
+import { useDataSource } from '../context/DataSourceContext';
+import { fetchTransactions, createTransaction, updateTransaction } from '../services/transactionsApi';
+import { Link } from 'react-router-dom';
 
 export const Transactions = () => {
   const { formatMoney } = useCurrency();
-  const [list, setList] = useState<Transaction[]>(TRANSACTIONS);
+  const { connected: n26Connected } = useN26Connection();
+  const { isReal } = useDataSource();
+  const [list, setList] = useState<Transaction[]>(() => (isReal ? [] : TRANSACTIONS));
+  const [listLoading, setListLoading] = useState(isReal);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing-apple' | 'syncing-n26'>('idle');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   // Filters
   const [activeAccount, setActiveAccount] = useState('All');
   const [activeType, setActiveType] = useState<'all' | 'one-time' | 'recurring'>('all');
 
-  // In a real app we'd get these from a global state/context synced with Settings
   const methods = PAYMENT_METHODS;
+
+  const loadList = useCallback(async () => {
+    if (!isReal) return;
+    setListLoading(true);
+    try {
+      const data = await fetchTransactions();
+      setList(data);
+    } catch (_) {
+      setList([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [isReal]);
+
+  useEffect(() => {
+    if (isReal) loadList();
+    else setList(TRANSACTIONS);
+  }, [isReal, loadList]);
 
   const filteredList = useMemo(() => {
     return list.filter(t => {
@@ -39,12 +64,85 @@ export const Transactions = () => {
     setSyncStatus('idle');
   };
 
-  const handleUpdateTransaction = (e: React.FormEvent) => {
+  const handleUpdateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTransaction) return;
 
-    setList(prev => prev.map(t => t.id === editingTransaction.id ? editingTransaction : t));
+    if (isReal) {
+      try {
+        const updated = await updateTransaction(editingTransaction.id, editingTransaction);
+        setList(prev => prev.map(t => t.id === updated.id ? updated : t));
+      } catch (_) {
+        // keep local update on error
+        setList(prev => prev.map(t => t.id === editingTransaction.id ? editingTransaction : t));
+      }
+    } else {
+      setList(prev => prev.map(t => t.id === editingTransaction.id ? editingTransaction : t));
+    }
     setEditingTransaction(null);
+  };
+
+  const CATEGORIES: Category[] = ['Housing', 'Food & Dining', 'Transport', 'Utilities', 'Electronics', 'Health', 'Entertainment', 'Income', 'Shopping'];
+  const defaultIconForCategory: Record<string, string> = {
+    'Housing': 'home',
+    'Food & Dining': 'restaurant',
+    'Transport': 'directions_car',
+    'Utilities': 'bolt',
+    'Electronics': 'devices',
+    'Health': 'fitness_center',
+    'Entertainment': 'movie',
+    'Income': 'payments',
+    'Shopping': 'shopping_cart',
+  };
+
+  const [newTransaction, setNewTransaction] = useState<Partial<Transaction> & { date: string; type: 'one-time' | 'recurring' }>({
+    merchant: '',
+    amount: 0,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    category: 'Food & Dining',
+    paymentMethod: methods[0]?.name ?? 'N26',
+    type: 'one-time',
+    status: 'completed',
+    icon: 'receipt_long',
+  });
+
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTransaction.merchant?.trim()) return;
+    const category = newTransaction.category ?? 'Food & Dining';
+    const icon = defaultIconForCategory[category] ?? 'receipt_long';
+    const tx: Transaction = {
+      id: `manual-${Date.now()}`,
+      merchant: newTransaction.merchant.trim(),
+      amount: Number(newTransaction.amount) ?? 0,
+      date: newTransaction.date ?? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      category,
+      paymentMethod: newTransaction.paymentMethod ?? methods[0]?.name ?? 'N26',
+      type: newTransaction.type ?? 'one-time',
+      status: 'completed',
+      icon,
+    };
+    if (isReal) {
+      try {
+        const created = await createTransaction(tx);
+        setList(prev => [created, ...prev]);
+      } catch (_) {
+        setList(prev => [tx, ...prev]);
+      }
+    } else {
+      setList(prev => [tx, ...prev]);
+    }
+    setShowAddModal(false);
+    setNewTransaction({
+      merchant: '',
+      amount: 0,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      category: 'Food & Dining',
+      paymentMethod: methods[0]?.name ?? 'N26',
+      type: 'one-time',
+      status: 'completed',
+      icon: 'receipt_long',
+    });
   };
 
   return (
@@ -57,18 +155,28 @@ export const Transactions = () => {
         </div>
         
         <div className="flex flex-wrap gap-3">
-          <button 
-            onClick={() => handleSync('N26')}
-            disabled={syncStatus !== 'idle'}
-            className="group relative flex items-center gap-3 px-6 py-3 bg-[#36a18b] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36a18b]/20"
-          >
-            {syncStatus === 'syncing-n26' ? (
-              <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <span className="material-symbols-outlined text-lg">account_balance</span>
-            )}
-            <span>{syncStatus === 'syncing-n26' ? 'Connecting...' : 'Sync N26'}</span>
-          </button>
+          {n26Connected ? (
+            <button 
+              onClick={() => handleSync('N26')}
+              disabled={syncStatus !== 'idle'}
+              className="group relative flex items-center gap-3 px-6 py-3 bg-[#36a18b] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36a18b]/20"
+            >
+              {syncStatus === 'syncing-n26' ? (
+                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <span className="material-symbols-outlined text-lg">account_balance</span>
+              )}
+              <span>{syncStatus === 'syncing-n26' ? 'Syncing…' : 'Sync N26'}</span>
+            </button>
+          ) : (
+            <Link
+              to="/settings"
+              className="flex items-center gap-3 px-6 py-3 bg-white/5 text-[#9db9a6] rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] border border-white/10 hover:bg-white/10 hover:text-white transition-all"
+            >
+              <span className="material-symbols-outlined text-lg">link_off</span>
+              Connect N26 in Settings
+            </Link>
+          )}
 
           <button 
             onClick={() => handleSync('Apple')}
@@ -81,6 +189,15 @@ export const Transactions = () => {
               <span className="material-symbols-outlined text-lg">apple</span>
             )}
             <span>{syncStatus === 'syncing-apple' ? 'Authorizing...' : 'Sync Apple Pay'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-3 px-6 py-3 bg-primary text-background-dark rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+          >
+            <span className="material-symbols-outlined text-lg">add</span>
+            Add missing transaction
           </button>
         </div>
       </div>
@@ -141,7 +258,17 @@ export const Transactions = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {filteredList.map((t) => (
+            {listLoading ? (
+              <tr>
+                <td colSpan={6} className="px-8 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#9db9a6] text-sm font-bold uppercase tracking-widest">Loading transactions…</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+            filteredList.map((t) => (
               <tr key={t.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setEditingTransaction(t)}>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-4">
@@ -181,16 +308,147 @@ export const Transactions = () => {
                   <span className="material-symbols-outlined text-gray-500">edit_note</span>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
-        {filteredList.length === 0 && (
+        {!listLoading && filteredList.length === 0 && (
           <div className="p-20 text-center">
-            <span className="material-symbols-outlined text-4xl text-gray-700 mb-4">search_off</span>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No matching ledger entries found.</p>
+            {list.length === 0 && isReal ? (
+              <>
+                <span className="material-symbols-outlined text-4xl text-primary/40 mb-4">inbox</span>
+                <p className="text-[#9db9a6] font-bold uppercase tracking-widest text-xs">Database is empty</p>
+                <p className="text-gray-500 text-xs mt-1">Add a transaction above or load data in the next steps.</p>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-4xl text-gray-700 mb-4">search_off</span>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No matching ledger entries found.</p>
+              </>
+            )}
           </div>
         )}
       </div>
+
+      {/* Add missing transaction modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/60 animate-in fade-in duration-300">
+          <div className="glass-card w-full max-w-lg rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden scale-in-center">
+            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+              <div>
+                <h3 className="text-white text-xl font-black uppercase italic tracking-widest">Add missing transaction</h3>
+                <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mt-1">From another source – mark as fixed (recurring) or one-time</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="size-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddTransaction} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Merchant / description</label>
+                  <input 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-gray-600"
+                    placeholder="e.g. Landlord rent, Cash withdrawal"
+                    value={newTransaction.merchant ?? ''}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, merchant: e.target.value })}
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Amount (USD)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    placeholder="-50.00"
+                    value={newTransaction.amount === 0 ? '' : newTransaction.amount}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, amount: parseFloat(e.target.value) || 0 })}
+                  />
+                  <p className="text-[9px] text-gray-500 mt-1">Negative = expense, positive = income</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Date</label>
+                  <input 
+                    type="text"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-gray-600"
+                    placeholder="Oct 24, 2023"
+                    value={newTransaction.date ?? ''}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Payment source</label>
+                  <select 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    value={newTransaction.paymentMethod ?? ''}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, paymentMethod: e.target.value })}
+                  >
+                    {methods.map(m => (
+                      <option key={m.id} value={m.name} className="bg-background-dark">{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Category</label>
+                  <select 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    value={newTransaction.category ?? ''}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, category: e.target.value as Category })}
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c} value={c} className="bg-background-dark">{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Fixed (recurring) or one-time</label>
+                  <div className="flex bg-black/30 p-1 rounded-xl border border-white/5">
+                    <button 
+                      type="button"
+                      onClick={() => setNewTransaction({ ...newTransaction, type: 'one-time' })}
+                      className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.type === 'one-time' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                    >
+                      One-time
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setNewTransaction({ ...newTransaction, type: 'recurring' })}
+                      className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.type === 'recurring' ? 'bg-primary text-background-dark shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-white'}`}
+                    >
+                      Recurring (fixed)
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-gray-500 mt-1">Recurring = fixed monthly expense (rent, subscriptions, etc.)</p>
+                </div>
+              </div>
+
+              <div className="pt-6 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={!newTransaction.merchant?.trim()}
+                  className="flex-1 py-4 rounded-2xl bg-primary text-background-dark font-black text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                >
+                  Add transaction
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editingTransaction && (

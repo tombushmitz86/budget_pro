@@ -1,8 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FIXED_MONTHLY_EXPENSES } from '../constants';
 import type { Category } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { useDataSource } from '../context/DataSourceContext';
+import { fetchTransactions } from '../services/transactionsApi';
 
 type PlanStatus = 'active' | 'eliminated' | 'reduced';
 
@@ -19,17 +21,44 @@ interface PlanItem extends FixedItem {
   reducedAmount?: number;
 }
 
+function toPlanItems(expenses: { id: string; merchant: string; category: Category; amount: number; icon: string }[]): PlanItem[] {
+  return expenses.map((item) => ({ ...item, status: 'active' as PlanStatus }));
+}
+
 /**
  * Plan page: saving projections from fixed expenses.
+ * Mock: uses FIXED_MONTHLY_EXPENSES. Real: uses recurring expenses from API (type === 'recurring', amount < 0).
  * All eliminate/reduce/restore actions affect only this component's state (session).
- * FIXED_MONTHLY_EXPENSES and TRANSACTIONS are never mutated; real edits happen on the Transactions page.
  */
 export const Plan = () => {
   const { formatMoney } = useCurrency();
-  // Session-only copy: constant is read once at mount; all changes are local state only
+  const { isReal } = useDataSource();
   const [items, setItems] = useState<PlanItem[]>(() =>
-    FIXED_MONTHLY_EXPENSES.map((item) => ({ ...item, status: 'active' as PlanStatus }))
+    toPlanItems(FIXED_MONTHLY_EXPENSES)
   );
+  const [loading, setLoading] = useState(isReal);
+
+  useEffect(() => {
+    if (isReal) {
+      setLoading(true);
+      fetchTransactions()
+        .then((txs) => {
+          const recurringExpenses = txs.filter((t) => t.type === 'recurring' && t.amount < 0);
+          const asFixed = recurringExpenses.map((t) => ({
+            id: t.id,
+            merchant: t.merchant,
+            category: t.category,
+            amount: t.amount,
+            icon: t.icon,
+          }));
+          setItems(toPlanItems(asFixed));
+        })
+        .catch(() => setItems([]))
+        .finally(() => setLoading(false));
+    } else {
+      setItems(toPlanItems(FIXED_MONTHLY_EXPENSES));
+    }
+  }, [isReal]);
 
   const { originalTotal, projectedMonthly, totalSaved } = useMemo(() => {
     let projected = 0;
@@ -61,6 +90,17 @@ export const Plan = () => {
     updateItem(id, { status: 'reduced', reducedAmount: -Math.abs(reducedAmount) });
   const restore = (id: string) => updateItem(id, { status: 'active', reducedAmount: undefined });
 
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="flex items-center justify-center py-24">
+          <div className="size-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="ml-3 text-[#9db9a6] text-sm font-bold uppercase tracking-widest">Loading plan…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {/* 1. Total monthly spendings & 2. Total money saved – summary cards */}
@@ -89,16 +129,28 @@ export const Plan = () => {
           <p className="text-[#9db9a6] text-sm mt-1">Eliminate or reduce amounts to build your saving plan. Changes are for this session only; to edit or remove real transactions, use the Transactions page.</p>
         </div>
         <div className="divide-y divide-border-dark">
-          {items.map((item) => (
-            <FixedRow
-              key={item.id}
-              item={item}
-              formatMoney={formatMoney}
-              onEliminate={() => eliminate(item.id)}
-              onReduce={(value) => reduce(item.id, value)}
-              onRestore={() => restore(item.id)}
-            />
-          ))}
+          {items.length === 0 ? (
+            <div className="p-12 text-center">
+              <span className="material-symbols-outlined text-4xl text-[#9db9a6]/50">savings</span>
+              <p className="text-[#9db9a6] font-bold uppercase tracking-widest mt-4">No fixed expenses</p>
+              <p className="text-gray-500 text-sm mt-1">
+                {isReal
+                  ? 'Add recurring transactions on the Transactions page to see them here.'
+                  : 'Switch to Real data (DB) to use recurring transactions from your database.'}
+              </p>
+            </div>
+          ) : (
+            items.map((item) => (
+              <FixedRow
+                key={item.id}
+                item={item}
+                formatMoney={formatMoney}
+                onEliminate={() => eliminate(item.id)}
+                onReduce={(value) => reduce(item.id, value)}
+                onRestore={() => restore(item.id)}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

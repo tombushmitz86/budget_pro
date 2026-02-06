@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.DS_Store
+server/.n26-tokens.json
+server/data/
+*.db

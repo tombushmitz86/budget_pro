@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useN26Connection } from '../context/N26ConnectionContext';
+import { useDataSource } from '../context/DataSourceContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -70,6 +72,7 @@ const Sidebar = () => {
 
 const Header = () => {
   const location = useLocation();
+  const { connected: n26Connected } = useN26Connection();
   const path = location.pathname.substring(1);
   const titleMap: Record<string, string> = {
     '': 'Intelligence Overview',
@@ -80,9 +83,11 @@ const Header = () => {
     'transactions': 'Unified Ledger',
     'assets': 'Wealth Portfolio',
     'settings': 'System Control',
-    'add': 'Data Input'
+    'add': 'Data Input',
+    'connect': 'N26 Connection'
   };
-  const title = titleMap[path] || 'Intelligence Overview';
+  const pathSegment = path.split('/')[0];
+  const title = titleMap[pathSegment] ?? titleMap[path] ?? 'Intelligence Overview';
 
   return (
     <header className="flex items-center justify-between border-b border-border-dark px-10 py-5 bg-background-dark/80 backdrop-blur-xl sticky top-0 z-40">
@@ -91,10 +96,14 @@ const Header = () => {
         <div className="flex items-center gap-2 mt-1">
            <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest">Institutional Insights</p>
            <span className="size-1 rounded-full bg-gray-600"></span>
-           <p className="text-[#36a18b] text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-             <span className="size-1.5 rounded-full bg-[#36a18b] animate-pulse"></span>
-             N26 Linked
-           </p>
+           {n26Connected ? (
+             <p className="text-[#36a18b] text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+               <span className="size-1.5 rounded-full bg-[#36a18b] animate-pulse"></span>
+               N26 Linked
+             </p>
+           ) : (
+             <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">N26 not connected</p>
+           )}
         </div>
       </div>
       
@@ -129,12 +138,46 @@ const Header = () => {
   );
 };
 
+const DataSourceBar = () => {
+  const { mode, setMode } = useDataSource();
+  return (
+    <div className="flex items-center justify-between gap-4 px-10 py-2.5 border-b border-border-dark bg-background-dark/60 backdrop-blur-sm">
+      <p className="text-[10px] font-bold text-[#9db9a6] uppercase tracking-widest">Data source</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('mock')}
+          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            mode === 'mock'
+              ? 'bg-primary text-background-dark shadow-md'
+              : 'bg-white/5 text-[#9db9a6] hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Mock data
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('real')}
+          className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            mode === 'real'
+              ? 'bg-primary text-background-dark shadow-md'
+              : 'bg-white/5 text-[#9db9a6] hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Real data (DB)
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex min-h-screen bg-background-dark text-white">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <Header />
+        <DataSourceBar />
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-[1400px] mx-auto p-10">
             {children}

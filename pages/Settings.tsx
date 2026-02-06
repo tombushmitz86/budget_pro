@@ -3,9 +3,23 @@ import React, { useState } from 'react';
 import { TRANSACTIONS, BUDGETS, ASSETS, PAYMENT_METHODS } from '../constants';
 import { AppSnapshot, PaymentMethod, Currency } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { useN26Connection } from '../context/N26ConnectionContext';
+import { useDataSource } from '../context/DataSourceContext';
 
 export const Settings = () => {
   const { currency, setCurrency } = useCurrency();
+  const { mode: dataSourceMode, setMode: setDataSourceMode } = useDataSource();
+  const {
+    connected: n26Connected,
+    error: n26Error,
+    isConnecting: n26Connecting,
+    startConnect: n26StartConnect,
+    completeConnection: n26CompleteConnection,
+    failConnection: n26FailConnection,
+    disconnect: n26Disconnect,
+    clearError: n26ClearError,
+    hasOAuthConfig: n26HasOAuthConfig,
+  } = useN26Connection();
   const [methods, setMethods] = useState<PaymentMethod[]>(PAYMENT_METHODS);
   const [showAddMethod, setShowAddMethod] = useState(false);
   const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({ type: 'bank', icon: 'account_balance' });
@@ -108,6 +122,144 @@ export const Settings = () => {
         <div className="bg-primary/10 border border-primary/30 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <span className="material-symbols-outlined text-primary">check_circle</span>
           <p className="text-primary text-[10px] font-black uppercase tracking-widest">{showSuccess}</p>
+        </div>
+      )}
+
+      {n26Error && (
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex items-center justify-between gap-3">
+          <p className="text-red-400 text-[10px] font-black uppercase tracking-widest">{n26Error}</p>
+          <button type="button" onClick={n26ClearError} className="text-red-400 hover:text-white p-1">
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* Data source: Mock vs Real (database) */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined">storage</span>
+          </div>
+          <h2 className="text-white text-xl font-black uppercase tracking-widest italic">Data source</h2>
+        </div>
+        <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-4">
+          <p className="text-[#9db9a6] text-xs leading-relaxed">
+            Use mock data (in-memory, sample transactions) or real data from the database. With real data, everything starts empty until transactions are loaded or created.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setDataSourceMode('mock')}
+              className={`px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all border ${
+                dataSourceMode === 'mock'
+                  ? 'bg-primary text-background-dark border-primary shadow-lg shadow-primary/20'
+                  : 'bg-white/5 text-[#9db9a6] border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              Mock data
+            </button>
+            <button
+              type="button"
+              onClick={() => setDataSourceMode('real')}
+              className={`px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all border ${
+                dataSourceMode === 'real'
+                  ? 'bg-primary text-background-dark border-primary shadow-lg shadow-primary/20'
+                  : 'bg-white/5 text-[#9db9a6] border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              Real data (database)
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+            Current: {dataSourceMode === 'mock' ? 'Mock data' : 'Real data (database)'}
+          </p>
+          {dataSourceMode === 'real' && (
+            <p className="text-primary/80 text-xs font-medium">
+              Database is empty until transactions are loaded or created. Use the Transactions page to add entries.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* N26 account */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-[#36a18b]/10 flex items-center justify-center text-[#36a18b]">
+            <span className="material-symbols-outlined">account_balance</span>
+          </div>
+          <h2 className="text-white text-xl font-black uppercase tracking-widest italic">N26 Account</h2>
+        </div>
+        <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-4">
+          <p className="text-[#9db9a6] text-xs leading-relaxed">
+            Connect your N26 bank account to sync transactions. Authorization uses OAuth 2.0 (PSD2). Without backend config, a demo consent is shown.
+          </p>
+          {n26Connected ? (
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#36a18b]/20 border border-[#36a18b]/30">
+                <span className="size-2 rounded-full bg-[#36a18b] animate-pulse" />
+                <span className="text-[#36a18b] text-sm font-black uppercase tracking-widest">N26 Connected</span>
+              </div>
+              <button
+                type="button"
+                onClick={n26Disconnect}
+                className="px-6 py-3 rounded-xl bg-white/5 text-[#9db9a6] text-xs font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={n26StartConnect}
+              disabled={n26Connecting}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#36a18b] text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 transition-all"
+            >
+              {n26Connecting && n26HasOAuthConfig ? (
+                <>
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Redirecting to N26…
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">link</span>
+                  Connect N26
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Mock N26 consent modal (when no OAuth config – demo flow) */}
+      {n26Connecting && !n26HasOAuthConfig && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 backdrop-blur-lg bg-black/70 animate-in fade-in duration-300">
+          <div className="glass-card w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="size-12 rounded-xl bg-[#36a18b]/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[#36a18b] text-2xl">account_balance</span>
+              </div>
+              <h3 className="text-white text-lg font-black uppercase tracking-tight">N26 Authorization</h3>
+            </div>
+            <p className="text-[#9db9a6] text-sm leading-relaxed mb-6">
+              BudgetPro would like to access your N26 account balances and transactions (read-only). This is a demo flow; in production you would be redirected to N26 to sign in.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => n26FailConnection('Cancelled')}
+                className="flex-1 py-3 rounded-xl bg-white/5 text-[#9db9a6] text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => n26CompleteConnection()}
+                className="flex-1 py-3 rounded-xl bg-[#36a18b] text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
+              >
+                Authorize
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
