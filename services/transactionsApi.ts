@@ -39,6 +39,7 @@ export async function createTransaction(tx: Omit<Transaction, 'id'> & { id?: str
       icon: tx.icon ?? 'receipt_long',
       paymentMethod: tx.paymentMethod,
       type: tx.type ?? 'one-time',
+      recurringInterval: tx.recurringInterval,
       ...(tx.id ? { id: tx.id } : {}),
     }),
   });
@@ -56,6 +57,7 @@ export async function updateTransaction(id: string, tx: Partial<Transaction>): P
       icon: tx.icon,
       paymentMethod: tx.paymentMethod,
       type: tx.type,
+      recurringInterval: tx.recurringInterval,
     }),
   });
 }

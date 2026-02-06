@@ -71,6 +71,7 @@ app.post('/api/transactions', (req, res) => {
       icon: body.icon ?? 'receipt_long',
       paymentMethod: body.paymentMethod ?? body.payment_method,
       type: body.type ?? 'one-time',
+      recurringInterval: body.recurringInterval ?? body.recurring_interval,
     });
     res.status(201).json(created);
   } catch (err) {
@@ -92,6 +93,7 @@ app.put('/api/transactions/:id', (req, res) => {
       icon: body.icon,
       paymentMethod: body.paymentMethod ?? body.payment_method,
       type: body.type,
+      recurringInterval: body.recurringInterval ?? body.recurring_interval,
     });
     if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);

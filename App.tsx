@@ -14,15 +14,7 @@ import { Plan } from './pages/Plan';
 import { Assets } from './pages/Assets';
 import { Transactions } from './pages/Transactions';
 import { Settings } from './pages/Settings';
-
-// Placeholder pages to maintain structural integrity
-const Reports = () => (
-  <div className="p-20 text-center glass-card rounded-3xl border-dashed border-2 border-border-dark">
-    <span className="material-symbols-outlined text-6xl text-primary/20 mb-6">monitoring</span>
-    <h2 className="text-4xl font-black italic uppercase italic">Market Analytics</h2>
-    <p className="text-gray-500 mt-4 font-bold uppercase tracking-widest text-xs">Deep dive analysis engine coming soon...</p>
-  </div>
-);
+import { Reports } from './pages/Reports';
 
 const AddTransaction = () => (
   <div className="p-20 text-center glass-card rounded-3xl border-dashed border-2 border-border-dark">

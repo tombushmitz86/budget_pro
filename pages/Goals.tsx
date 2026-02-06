@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
 import { useGoals } from '../context/GoalsContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useDataSource } from '../context/DataSourceContext';
+import { DEFAULT_SAVINGS_GOALS } from '../constants';
 import type { SavingsGoal } from '../types';
 
 export const Goals = () => {
-  const { goals, addGoal, updateGoal, deleteGoal } = useGoals();
-  const { formatMoney } = useCurrency();
+  const { isReal } = useDataSource();
+  const contextGoals = useGoals();
+  const { formatMoney, currency } = useCurrency();
+  const [mockGoals, setMockGoals] = useState<SavingsGoal[]>(() => [...DEFAULT_SAVINGS_GOALS]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', targetAmount: 5000, currentAmount: 0 });
+
+  const goals = isReal ? contextGoals.goals : mockGoals;
+  const addGoalFn = isReal ? contextGoals.addGoal : (goal: Omit<SavingsGoal, 'id'>) => setMockGoals((prev) => [...prev, { ...goal, id: `g-${Date.now()}` }]);
+  const updateGoalFn = isReal ? contextGoals.updateGoal : (id: string, update: Partial<Omit<SavingsGoal, 'id'>>) => setMockGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...update } : g)));
+  const deleteGoalFn = isReal ? contextGoals.deleteGoal : (id: string) => setMockGoals((prev) => prev.filter((g) => g.id !== id));
 
   const resetForm = () => {
     setForm({ name: '', targetAmount: 5000, currentAmount: 0 });
@@ -19,7 +28,7 @@ export const Goals = () => {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    addGoal({
+    addGoalFn({
       name: form.name.trim(),
       targetAmount: Math.max(0, form.targetAmount),
       currentAmount: Math.max(0, form.currentAmount),
@@ -31,7 +40,7 @@ export const Goals = () => {
     e.preventDefault();
     const g = goals.find((x) => x.id === id);
     if (!g) return;
-    updateGoal(id, {
+    updateGoalFn(id, {
       name: form.name.trim() || g.name,
       targetAmount: Math.max(0, form.targetAmount),
       currentAmount: Math.max(0, form.currentAmount),
@@ -50,7 +59,7 @@ export const Goals = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-white text-5xl font-black leading-tight tracking-tighter uppercase italic">Savings Goals</h1>
-          <p className="text-[#9db9a6] text-sm font-medium tracking-wide">Track and manage what you’re saving for. Your primary goal appears on the overview.</p>
+          <p className="text-[#9db9a6] text-sm font-medium tracking-wide">Track and manage what you’re saving for. Your primary goal appears on the overview. {isReal ? 'Real data (saved).' : 'Mock data (not saved).'}</p>
         </div>
         <button
           type="button"
@@ -84,7 +93,7 @@ export const Goals = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Target amount (USD)</label>
+              <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Target amount ({currency})</label>
               <input
                 type="number"
                 min="0"
@@ -95,7 +104,7 @@ export const Goals = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Current amount (USD)</label>
+              <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Current amount ({currency})</label>
               <input
                 type="number"
                 min="0"
@@ -163,7 +172,7 @@ export const Goals = () => {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Target (USD)</label>
+                        <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Target ({currency})</label>
                         <input
                           type="number"
                           min="0"
@@ -174,7 +183,7 @@ export const Goals = () => {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Current (USD)</label>
+                        <label className="text-[10px] font-black text-[#9db9a6] uppercase tracking-widest mb-2 block">Current ({currency})</label>
                         <input
                           type="number"
                           min="0"
@@ -209,7 +218,7 @@ export const Goals = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => deleteGoal(g.id)}
+                            onClick={() => deleteGoalFn(g.id)}
                             className="p-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
                             aria-label="Delete"
                           >

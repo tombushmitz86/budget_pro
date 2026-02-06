@@ -21,7 +21,7 @@ function ensureDataDir() {
 }
 
 const SCHEMA = `
--- Transactions (ledger entries)
+-- Transactions (ledger entries). amount is always stored as monthly value for aggregations.
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
   merchant TEXT NOT NULL,
@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   icon TEXT NOT NULL DEFAULT 'receipt_long',
   payment_method TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'one-time',
+  recurring_interval TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -45,6 +46,9 @@ export function initDb() {
   ensureDataDir();
   db = new Database(DB_PATH);
   db.exec(SCHEMA);
+  try {
+    db.exec('ALTER TABLE transactions ADD COLUMN recurring_interval TEXT');
+  } catch (_) {}
   return db;
 }
 

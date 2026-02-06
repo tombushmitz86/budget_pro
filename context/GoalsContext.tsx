@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { SavingsGoal } from '../types';
-import { DEFAULT_SAVINGS_GOALS } from '../constants';
 
 const STORAGE_KEY = 'budgetpro_savings_goals';
 
+/** Load only user-saved goals from storage. Returns [] when empty so real data mode shows no goals until user adds them. */
 function loadGoals(): SavingsGoal[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as SavingsGoal[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (_) {}
-  return [...DEFAULT_SAVINGS_GOALS];
+  return [];
 }
 
 function saveGoals(goals: SavingsGoal[]) {

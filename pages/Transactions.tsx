@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TRANSACTIONS, PAYMENT_METHODS } from '../constants';
-import { Transaction, PaymentMethod, Category } from '../types';
+import { Transaction, PaymentMethod, Category, RecurringInterval } from '../types';
 import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
 import { useN26Connection } from '../context/N26ConnectionContext';
@@ -10,7 +10,7 @@ import { fetchTransactions, createTransaction, updateTransaction } from '../serv
 import { Link } from 'react-router-dom';
 
 export const Transactions = () => {
-  const { formatMoney } = useCurrency();
+  const { formatMoney, currency } = useCurrency();
   const { connected: n26Connected } = useN26Connection();
   const { isReal } = useDataSource();
   const [list, setList] = useState<Transaction[]>(() => (isReal ? [] : TRANSACTIONS));
@@ -68,16 +68,21 @@ export const Transactions = () => {
     e.preventDefault();
     if (!editingTransaction) return;
 
+    const payload = {
+      ...editingTransaction,
+      recurringInterval: editingTransaction.type === 'recurring' ? (editingTransaction.recurringInterval ?? 'monthly') : undefined,
+    };
+
     if (isReal) {
       try {
-        const updated = await updateTransaction(editingTransaction.id, editingTransaction);
+        const updated = await updateTransaction(editingTransaction.id, payload);
         setList(prev => prev.map(t => t.id === updated.id ? updated : t));
       } catch (_) {
         // keep local update on error
-        setList(prev => prev.map(t => t.id === editingTransaction.id ? editingTransaction : t));
+        setList(prev => prev.map(t => t.id === editingTransaction.id ? payload : t));
       }
     } else {
-      setList(prev => prev.map(t => t.id === editingTransaction.id ? editingTransaction : t));
+      setList(prev => prev.map(t => t.id === editingTransaction.id ? payload : t));
     }
     setEditingTransaction(null);
   };
@@ -95,13 +100,15 @@ export const Transactions = () => {
     'Shopping': 'shopping_cart',
   };
 
-  const [newTransaction, setNewTransaction] = useState<Partial<Transaction> & { date: string; type: 'one-time' | 'recurring' }>({
+  const [newTransaction, setNewTransaction] = useState<Partial<Transaction> & { date: string; type: 'one-time' | 'recurring'; recurringInterval: RecurringInterval; transactionKind: 'expense' | 'income' }>({
     merchant: '',
     amount: 0,
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     category: 'Food & Dining',
     paymentMethod: methods[0]?.name ?? 'N26',
     type: 'one-time',
+    recurringInterval: 'monthly',
+    transactionKind: 'expense',
     status: 'completed',
     icon: 'receipt_long',
   });
@@ -111,14 +118,23 @@ export const Transactions = () => {
     if (!newTransaction.merchant?.trim()) return;
     const category = newTransaction.category ?? 'Food & Dining';
     const icon = defaultIconForCategory[category] ?? 'receipt_long';
+    const isRecurring = newTransaction.type === 'recurring';
+    const interval = newTransaction.recurringInterval ?? 'monthly';
+    let amount = Math.abs(Number(newTransaction.amount) ?? 0);
+    if (isRecurring && interval === 'yearly' && amount !== 0) {
+      amount = amount / 12;
+    }
+    const kind = newTransaction.transactionKind ?? 'expense';
+    amount = kind === 'expense' ? -amount : amount;
     const tx: Transaction = {
       id: `manual-${Date.now()}`,
       merchant: newTransaction.merchant.trim(),
-      amount: Number(newTransaction.amount) ?? 0,
+      amount,
       date: newTransaction.date ?? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       category,
       paymentMethod: newTransaction.paymentMethod ?? methods[0]?.name ?? 'N26',
       type: newTransaction.type ?? 'one-time',
+      recurringInterval: isRecurring ? interval : undefined,
       status: 'completed',
       icon,
     };
@@ -140,6 +156,8 @@ export const Transactions = () => {
       category: 'Food & Dining',
       paymentMethod: methods[0]?.name ?? 'N26',
       type: 'one-time',
+      recurringInterval: 'monthly',
+      transactionKind: 'expense',
       status: 'completed',
       icon: 'receipt_long',
     });
@@ -269,7 +287,7 @@ export const Transactions = () => {
               </tr>
             ) : (
             filteredList.map((t) => (
-              <tr key={t.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setEditingTransaction(t)}>
+              <tr key={t.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setEditingTransaction({ ...t, recurringInterval: t.type === 'recurring' ? (t.recurringInterval ?? 'monthly') : undefined })}>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-4">
                     <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-[#9db9a6] group-hover:text-primary transition-colors">
@@ -295,13 +313,15 @@ export const Transactions = () => {
                       {t.type === 'recurring' ? 'sync' : 'push_pin'}
                     </span>
                     <p className={`text-[10px] font-black uppercase tracking-widest ${t.type === 'recurring' ? 'text-primary' : 'text-gray-600'}`}>
-                      {t.type}
+                      {t.type === 'recurring' && t.recurringInterval === 'yearly' ? 'recurring (yr)' : t.type}
                     </p>
                   </div>
                 </td>
                 <td className="px-8 py-6 text-right">
                   <p className={`text-lg font-black tracking-tight ${t.amount > 0 ? 'text-primary' : 'text-white'}`}>
-                    {t.amount > 0 ? `+${formatMoney(t.amount)}` : formatMoney(t.amount)}
+                    {t.type === 'recurring' && t.recurringInterval === 'yearly'
+                      ? `${t.amount > 0 ? '+' : ''}${formatMoney(t.amount)}/mo (${formatMoney(t.amount * 12)}/yr)`
+                      : t.amount > 0 ? `+${formatMoney(t.amount)}` : formatMoney(t.amount)}
                   </p>
                 </td>
                 <td className="px-8 py-6 text-right opacity-0 group-hover:opacity-100 transition-opacity">
@@ -358,16 +378,39 @@ export const Transactions = () => {
                 </div>
                 
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Amount (USD)</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Income or expense</label>
+                  <div className="flex bg-black/30 p-1 rounded-xl border border-white/5 mb-4">
+                    <button 
+                      type="button"
+                      onClick={() => setNewTransaction({ ...newTransaction, transactionKind: 'expense' })}
+                      className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.transactionKind === 'expense' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                    >
+                      Expense
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setNewTransaction({ ...newTransaction, transactionKind: 'income' })}
+                      className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.transactionKind === 'income' ? 'bg-primary text-background-dark shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-white'}`}
+                    >
+                      Income
+                    </button>
+                  </div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">
+                    {newTransaction.type === 'recurring' && newTransaction.recurringInterval === 'yearly'
+                      ? `Yearly amount (${currency})`
+                      : `Amount (${currency})`}
+                    {newTransaction.type === 'recurring' && newTransaction.recurringInterval === 'monthly' && ' per month'}
+                  </label>
                   <input 
                     type="number"
                     step="0.01"
+                    min="0"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                    placeholder="-50.00"
-                    value={newTransaction.amount === 0 ? '' : newTransaction.amount}
-                    onChange={(e) => setNewTransaction({ ...newTransaction, amount: parseFloat(e.target.value) || 0 })}
+                    placeholder={newTransaction.type === 'recurring' && newTransaction.recurringInterval === 'yearly' ? '1200' : '50.00'}
+                    value={newTransaction.amount === 0 ? '' : Math.abs(newTransaction.amount)}
+                    onChange={(e) => setNewTransaction({ ...newTransaction, amount: Math.abs(parseFloat(e.target.value) || 0) })}
                   />
-                  <p className="text-[9px] text-gray-500 mt-1">Negative = expense, positive = income</p>
+                  <p className="text-[9px] text-gray-500 mt-1">Enter amount as positive. Yearly is stored as monthly for overviews.</p>
                 </div>
 
                 <div>
@@ -425,7 +468,29 @@ export const Transactions = () => {
                       Recurring (fixed)
                     </button>
                   </div>
-                  <p className="text-[9px] text-gray-500 mt-1">Recurring = fixed monthly expense (rent, subscriptions, etc.)</p>
+                  {newTransaction.type === 'recurring' && (
+                    <div className="mt-3">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Recurring interval</label>
+                      <div className="flex bg-black/30 p-1 rounded-xl border border-white/5">
+                        <button 
+                          type="button"
+                          onClick={() => setNewTransaction({ ...newTransaction, recurringInterval: 'monthly' })}
+                          className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.recurringInterval === 'monthly' ? 'bg-primary/80 text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                        >
+                          Monthly
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setNewTransaction({ ...newTransaction, recurringInterval: 'yearly' })}
+                          className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newTransaction.recurringInterval === 'yearly' ? 'bg-primary/80 text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                        >
+                          Yearly
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-gray-500 mt-1">Stored as monthly value for overviews and Plan.</p>
+                    </div>
+                  )}
+                  <p className="text-[9px] text-gray-500 mt-1">Recurring = fixed expense (rent, subscriptions, insurance, etc.)</p>
                 </div>
               </div>
 
@@ -476,12 +541,20 @@ export const Transactions = () => {
                 </div>
                 
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Amount (USD, stored)</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">
+                    {editingTransaction.type === 'recurring' && (editingTransaction.recurringInterval ?? 'monthly') === 'yearly' ? `Yearly amount (${currency})` : `Amount (${currency})`}
+                    {editingTransaction.type === 'recurring' && (editingTransaction.recurringInterval ?? 'monthly') === 'monthly' && ' per month'}
+                  </label>
                   <input 
                     type="number"
+                    step="0.01"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                    value={editingTransaction.amount}
-                    onChange={(e) => setEditingTransaction({...editingTransaction, amount: parseFloat(e.target.value)})}
+                    value={editingTransaction.type === 'recurring' && (editingTransaction.recurringInterval ?? 'monthly') === 'yearly' ? editingTransaction.amount * 12 : editingTransaction.amount}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value) || 0;
+                      const monthly = (editingTransaction.type === 'recurring' && (editingTransaction.recurringInterval ?? 'monthly') === 'yearly') ? v / 12 : v;
+                      setEditingTransaction({ ...editingTransaction, amount: monthly });
+                    }}
                   />
                 </div>
 
@@ -523,13 +596,35 @@ export const Transactions = () => {
                     </button>
                     <button 
                       type="button"
-                      onClick={() => setEditingTransaction({...editingTransaction, type: 'recurring'})}
+                      onClick={() => setEditingTransaction({...editingTransaction, type: 'recurring', recurringInterval: editingTransaction.recurringInterval ?? 'monthly'})}
                       className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editingTransaction.type === 'recurring' ? 'bg-primary text-background-dark shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-white'}`}
                     >
                       Recurring
                     </button>
                   </div>
                 </div>
+
+                {editingTransaction.type === 'recurring' && (
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Recurring interval</label>
+                    <div className="flex bg-black/30 p-1 rounded-xl border border-white/5">
+                      <button 
+                        type="button"
+                        onClick={() => setEditingTransaction({...editingTransaction, recurringInterval: 'monthly'})}
+                        className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${(editingTransaction.recurringInterval ?? 'monthly') === 'monthly' ? 'bg-primary/80 text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                      >
+                        Monthly
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setEditingTransaction({...editingTransaction, recurringInterval: 'yearly'})}
+                        className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${(editingTransaction.recurringInterval ?? 'monthly') === 'yearly' ? 'bg-primary/80 text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                      >
+                        Yearly
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-6 flex gap-3">

@@ -1,19 +1,23 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ASSETS } from '../constants';
 import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
+import { useDataSource } from '../context/DataSourceContext';
+import type { Asset } from '../types';
 
 export const Assets = () => {
   const { formatMoney } = useCurrency();
+  const { isReal } = useDataSource();
   const [horizon, setHorizon] = useState(25);
   const [interest, setInterest] = useState(8.5);
   const [monthly, setMonthly] = useState(2500);
   const [projectedValue, setProjectedValue] = useState("4,124,980");
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const totalAssets = ASSETS.reduce((sum, a) => sum + a.value, 0);
-  const totalLiabilities = 420000;
+  const assetsList: Asset[] = isReal ? [] : ASSETS;
+  const totalAssets = useMemo(() => assetsList.reduce((sum, a) => sum + a.value, 0), [assetsList]);
+  const totalLiabilities = isReal ? 0 : 420000;
   const netWorth = totalAssets - totalLiabilities;
 
   useEffect(() => {
@@ -93,7 +97,13 @@ export const Assets = () => {
           <button className="text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline">View Details <span className="material-symbols-outlined text-sm">chevron_right</span></button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {ASSETS.map((asset) => (
+          {assetsList.length === 0 ? (
+            <div className="col-span-full rounded-2xl glass-card border border-white/10 p-12 text-center">
+              <span className="material-symbols-outlined text-4xl text-gray-600 mb-4">account_balance_wallet</span>
+              <p className="text-white font-black uppercase tracking-widest">No assets recorded</p>
+              <p className="text-[#9db9a6] text-sm mt-2">Switch to <strong>Mock data</strong> in Settings to see sample portfolio, or add assets when supported.</p>
+            </div>
+          ) : assetsList.map((asset) => (
             <div key={asset.id} className="flex flex-col gap-4 p-5 rounded-2xl glass-card group hover:border-primary/50 transition-all cursor-pointer">
               <div 
                 className="w-full aspect-video bg-cover bg-center rounded-xl grayscale group-hover:grayscale-0 transition-all duration-500 shadow-xl" 
@@ -110,7 +120,7 @@ export const Assets = () => {
                 </p>
               </div>
             </div>
-          ))}
+          )))}
         </div>
       </div>
 

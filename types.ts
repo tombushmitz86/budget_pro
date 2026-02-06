@@ -1,14 +1,20 @@
 
+/** When type is 'recurring', interval of the recurrence. Amount is always stored as monthly value for aggregations. */
+export type RecurringInterval = 'monthly' | 'yearly';
+
 export interface Transaction {
   id: string;
   date: string;
   merchant: string;
   category: Category;
+  /** Always stored as monthly value (yearly amount / 12 when recurringInterval is 'yearly'). */
   amount: number;
   status: 'completed' | 'pending' | 'flagged';
   icon: string;
-  paymentMethod: string; // Changed to string to support dynamic methods
+  paymentMethod: string;
   type: 'one-time' | 'recurring';
+  /** Set when type === 'recurring'; default 'monthly'. */
+  recurringInterval?: RecurringInterval;
 }
 
 export interface PaymentMethod {
