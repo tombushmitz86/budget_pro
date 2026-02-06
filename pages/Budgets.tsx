@@ -1,8 +1,10 @@
 
 import React from 'react';
 import { BUDGETS } from '../constants';
+import { useCurrency } from '../context/CurrencyContext';
 
 export const Budgets = () => {
+  const { formatMoney } = useCurrency();
   return (
     <div className="space-y-8">
       {/* Page Heading Section */}
@@ -35,7 +37,7 @@ export const Budgets = () => {
             <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total Budget</p>
             <span className="material-symbols-outlined text-gray-500">account_balance</span>
           </div>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">$5,200.00</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(5200)}</p>
           <div className="flex items-center gap-1 text-primary text-[10px] font-bold uppercase tracking-wider">
             <span className="material-symbols-outlined text-sm">trending_up</span>
             <span>+2.5% from last month</span>
@@ -47,7 +49,7 @@ export const Budgets = () => {
             <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total Spent</p>
             <span className="material-symbols-outlined text-gray-500">shopping_cart</span>
           </div>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">$3,420.50</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(3420.5)}</p>
           <div className="flex items-center gap-1 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
             <span className="material-symbols-outlined text-sm">warning</span>
             <span>65% of budget used</span>
@@ -59,7 +61,7 @@ export const Budgets = () => {
             <p className="text-primary text-[10px] font-black uppercase tracking-widest">Remaining to Spend</p>
             <span className="material-symbols-outlined text-primary">savings</span>
           </div>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">$1,779.50</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(1779.5)}</p>
           <div className="flex items-center gap-1 text-[#9db9a6] text-[10px] font-bold uppercase tracking-wider">
             <span className="material-symbols-outlined text-sm">event</span>
             <span>12 days remaining in Oct</span>
@@ -111,8 +113,8 @@ export const Budgets = () => {
               
               <div className="flex justify-between items-end mb-3">
                 <span className="text-2xl font-black text-white leading-none">
-                  ${budget.spent.toLocaleString()} 
-                  <span className="text-xs font-bold text-gray-500 ml-1 italic">/ ${budget.limit.toLocaleString()}</span>
+                  {formatMoney(budget.spent)} 
+                  <span className="text-xs font-bold text-gray-500 ml-1 italic">/ {formatMoney(budget.limit)}</span>
                 </span>
                 <span className={`text-xs font-black ${isOver ? 'text-secondary' : 'text-primary'}`}>{Math.round(percent)}%</span>
               </div>
@@ -125,8 +127,8 @@ export const Budgets = () => {
               </div>
               
               <div className={`flex justify-between items-center text-[10px] font-black uppercase tracking-widest ${isOver ? 'text-secondary' : 'text-[#9db9a6]'}`}>
-                <span>Spent: ${budget.spent.toLocaleString()}</span>
-                <span>{isOver ? `Over by $${(budget.spent - budget.limit).toLocaleString()}` : budget.spent === budget.limit ? 'Fully Paid' : `Left: $${(budget.limit - budget.spent).toLocaleString()}`}</span>
+                <span>Spent: {formatMoney(budget.spent)}</span>
+                <span>{isOver ? `Over by ${formatMoney(budget.spent - budget.limit)}` : budget.spent === budget.limit ? 'Fully Paid' : `Left: ${formatMoney(budget.limit - budget.spent)}`}</span>
               </div>
             </div>
           );

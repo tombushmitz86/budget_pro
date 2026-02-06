@@ -1,10 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { TRANSACTIONS, PAYMENT_METHODS } from '../constants';
-import { Transaction, Category, PaymentMethod } from '../types';
+import { Transaction, PaymentMethod } from '../types';
 import { intelligence } from '../services/intelligenceService';
+import { useCurrency } from '../context/CurrencyContext';
 
 export const Transactions = () => {
+  const { formatMoney } = useCurrency();
   const [list, setList] = useState<Transaction[]>(TRANSACTIONS);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing-apple' | 'syncing-n26'>('idle');
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,7 +174,7 @@ export const Transactions = () => {
                 </td>
                 <td className="px-8 py-6 text-right">
                   <p className={`text-lg font-black tracking-tight ${t.amount > 0 ? 'text-primary' : 'text-white'}`}>
-                    {t.amount > 0 ? `+$${t.amount.toLocaleString()}` : `-$${Math.abs(t.amount).toLocaleString()}`}
+                    {t.amount > 0 ? `+${formatMoney(t.amount)}` : formatMoney(t.amount)}
                   </p>
                 </td>
                 <td className="px-8 py-6 text-right opacity-0 group-hover:opacity-100 transition-opacity">
@@ -216,7 +218,7 @@ export const Transactions = () => {
                 </div>
                 
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Amount ($)</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Amount (USD, stored)</label>
                   <input 
                     type="number"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"

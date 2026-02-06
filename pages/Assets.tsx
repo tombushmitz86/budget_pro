@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { ASSETS } from '../constants';
 import { intelligence } from '../services/intelligenceService';
+import { useCurrency } from '../context/CurrencyContext';
 
 export const Assets = () => {
+  const { formatMoney } = useCurrency();
   const [horizon, setHorizon] = useState(25);
   const [interest, setInterest] = useState(8.5);
   const [monthly, setMonthly] = useState(2500);
@@ -19,7 +21,7 @@ export const Assets = () => {
       setIsCalculating(true);
       const res = await intelligence.projectWealth(horizon, interest, monthly, netWorth);
       if (res && res !== "0") {
-        setProjectedValue(Number(res).toLocaleString());
+        setProjectedValue(res ?? '0');
       }
       setIsCalculating(false);
     };
@@ -52,7 +54,7 @@ export const Assets = () => {
             <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total Assets</p>
             <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
           </div>
-          <p className="text-white text-4xl font-black leading-tight tracking-tighter">${totalAssets.toLocaleString()}</p>
+          <p className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(totalAssets)}</p>
           <div className="flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
             <p className="text-primary text-[10px] font-black uppercase tracking-widest">+2.4% vs last month</p>
@@ -64,7 +66,7 @@ export const Assets = () => {
             <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total Liabilities</p>
             <span className="material-symbols-outlined text-secondary">payments</span>
           </div>
-          <p className="text-white text-4xl font-black leading-tight tracking-tighter">${totalLiabilities.toLocaleString()}</p>
+          <p className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(totalLiabilities)}</p>
           <div className="flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-secondary text-sm">trending_down</span>
             <p className="text-secondary text-[10px] font-black uppercase tracking-widest">-1.1% debt reduction</p>
@@ -76,7 +78,7 @@ export const Assets = () => {
             <p className="text-primary/70 text-[10px] font-black uppercase tracking-widest">Net Worth</p>
             <span className="material-symbols-outlined text-primary">auto_graph</span>
           </div>
-          <p className="text-primary text-5xl font-black leading-tight tracking-tighter">${netWorth.toLocaleString()}</p>
+          <p className="text-primary text-5xl font-black leading-tight tracking-tighter">{formatMoney(netWorth)}</p>
           <div className="flex items-center gap-1 mt-2">
             <span className="material-symbols-outlined text-primary text-sm">stars</span>
             <p className="text-primary text-[10px] font-black uppercase tracking-widest">+4.2% overall growth</p>
@@ -102,7 +104,7 @@ export const Assets = () => {
                   <p className="text-white text-lg font-black italic uppercase tracking-tight">{asset.name}</p>
                   <span className="px-2 py-0.5 bg-white/10 rounded-md text-[8px] font-black uppercase tracking-widest">{asset.type}</span>
                 </div>
-                <p className="text-primary text-2xl font-black tracking-tight">${asset.value.toLocaleString()}</p>
+                <p className="text-primary text-2xl font-black tracking-tight">{formatMoney(asset.value)}</p>
                 <p className="text-[#9db9a6] text-[10px] font-bold mt-1 flex items-center gap-1 uppercase tracking-widest italic">
                   <span className="material-symbols-outlined text-xs">trending_up</span> {asset.trend}
                 </p>
@@ -153,15 +155,15 @@ export const Assets = () => {
             <div className="space-y-5">
               <div className="flex justify-between font-black uppercase tracking-widest text-[10px]">
                 <label className="text-gray-400">Monthly Contribution</label>
-                <span className="text-primary">${monthly.toLocaleString()}</span>
+                <span className="text-primary">{formatMoney(monthly)}</span>
               </div>
               <input 
                 className="w-full h-1.5 bg-border-dark rounded-full appearance-none cursor-pointer accent-primary" 
                 type="range" min="0" max="10000" step="100" value={monthly} onChange={(e) => setMonthly(parseInt(e.target.value))}
               />
               <div className="flex justify-between text-[8px] text-gray-500 font-black uppercase">
-                <span>$0</span>
-                <span>$10,000</span>
+                <span>{formatMoney(0)}</span>
+                <span>{formatMoney(10000)}</span>
               </div>
             </div>
 
@@ -170,7 +172,7 @@ export const Assets = () => {
               <div className="relative">
                 <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Projected Portfolio Value</p>
                 <p className={`text-white text-4xl font-black italic transition-opacity ${isCalculating ? 'opacity-50' : 'opacity-100'}`}>
-                  ${projectedValue}
+                  {formatMoney(parseFloat(String(projectedValue).replace(/,/g, '')) || 0)}
                 </p>
                 <p className="text-primary text-[10px] font-black uppercase tracking-widest mt-1">+ Compound Gains Included</p>
               </div>
@@ -213,7 +215,7 @@ export const Assets = () => {
                
                <div className="absolute top-[10%] left-[65%] glass-card p-4 rounded-xl border border-primary/30 shadow-2xl z-20">
                  <p className="text-gray-500 text-[8px] font-black uppercase tracking-widest">Milestone 2038</p>
-                 <p className="text-primary text-xl font-black italic">$2,145,000</p>
+                 <p className="text-primary text-xl font-black italic">{formatMoney(2145000)}</p>
                </div>
             </div>
 
@@ -232,7 +234,7 @@ export const Assets = () => {
               <div className="space-y-1">
                 <p className="text-sm font-black italic uppercase tracking-widest text-white">Smart Strategy Insight</p>
                 <p className="text-[11px] text-[#9db9a6] leading-relaxed font-medium">
-                  Standard yield optimization indicates that by increasing your monthly deposits by <span className="text-primary font-bold">$200</span> today, you could potentially reach your $4M goal <span className="text-white font-bold">4.2 years</span> earlier.
+                  Standard yield optimization indicates that by increasing your monthly deposits by <span className="text-primary font-bold">{formatMoney(200)}</span> today, you could potentially reach your {formatMoney(4000000)} goal <span className="text-white font-bold">4.2 years</span> earlier.
                 </p>
               </div>
             </div>

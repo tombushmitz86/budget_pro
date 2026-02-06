@@ -1,9 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TRANSACTIONS, BUDGETS, ASSETS, PAYMENT_METHODS } from '../constants';
-import { AppSnapshot, PaymentMethod } from '../types';
+import { AppSnapshot, PaymentMethod, Currency } from '../types';
+import { useCurrency } from '../context/CurrencyContext';
 
 export const Settings = () => {
+  const { currency, setCurrency } = useCurrency();
   const [methods, setMethods] = useState<PaymentMethod[]>(PAYMENT_METHODS);
   const [showAddMethod, setShowAddMethod] = useState(false);
   const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({ type: 'bank', icon: 'account_balance' });
@@ -108,6 +110,36 @@ export const Settings = () => {
           <p className="text-primary text-[10px] font-black uppercase tracking-widest">{showSuccess}</p>
         </div>
       )}
+
+      {/* Display currency */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined">attach_money</span>
+          </div>
+          <h2 className="text-white text-xl font-black uppercase tracking-widest italic">Display Currency</h2>
+        </div>
+        <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-4">
+          <p className="text-[#9db9a6] text-xs leading-relaxed">All amounts (transactions, assets, budgets, plan) are stored in USD and shown in your selected currency.</p>
+          <div className="flex flex-wrap gap-3">
+            {(['USD', 'EUR', 'ILS'] as Currency[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCurrency(c)}
+                className={`px-6 py-3 rounded-2xl text-sm font-black uppercase tracking-widest transition-all border ${
+                  currency === c
+                    ? 'bg-primary text-background-dark border-primary shadow-lg shadow-primary/20'
+                    : 'bg-white/5 text-[#9db9a6] border-white/5 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {c === 'USD' ? 'USD ($)' : c === 'EUR' ? 'Euro (€)' : 'ILS (₪)'}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Current: {currency}</p>
+        </div>
+      </section>
 
       {/* Developer System Blueprint Section */}
       <section className="space-y-6">

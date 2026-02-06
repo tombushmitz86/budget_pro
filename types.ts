@@ -18,6 +18,8 @@ export interface PaymentMethod {
   icon: string;
 }
 
+export type Currency = 'USD' | 'EUR' | 'ILS';
+
 export type Category = 
   | 'Housing' 
   | 'Food & Dining' 
@@ -52,6 +54,14 @@ export interface Asset {
 export interface ChartData {
   name: string;
   value: number;
+}
+
+/** Savings goal: target amount and current progress (amounts in USD) */
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
 }
 
 export interface AppSnapshot {

@@ -3,8 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, Tooltip, XAxis } from 'recharts';
 import { CATEGORY_BREAKDOWN, SPENDING_TRENDS, TRANSACTIONS } from '../constants';
 import { intelligence } from '../services/intelligenceService';
+import { useCurrency } from '../context/CurrencyContext';
+import { useGoals } from '../context/GoalsContext';
+import { Link } from 'react-router-dom';
 
 export const Dashboard = () => {
+  const { formatMoney } = useCurrency();
+  const { primaryGoal } = useGoals();
   const [insight, setInsight] = useState("Analyzing patterns...");
 
   useEffect(() => {
@@ -24,7 +29,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Total Balance</p>
-              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">$42,850.25</h3>
+              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">{formatMoney(42850.25)}</h3>
               <div className="flex items-center gap-2 mt-4 text-primary font-bold text-sm">
                 <span className="material-symbols-outlined text-sm">trending_up</span>
                 <span>+12.5% <span className="text-[#9db9a6] font-medium ml-1">vs last month</span></span>
@@ -41,7 +46,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Monthly Spending</p>
-              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">$3,240.15</h3>
+              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">{formatMoney(3240.15)}</h3>
               <div className="flex items-center gap-2 mt-4 text-secondary font-bold text-sm">
                 <span className="material-symbols-outlined text-sm">trending_down</span>
                 <span>-5.1% <span className="text-[#9db9a6] font-medium ml-1">vs average</span></span>
@@ -157,22 +162,38 @@ export const Dashboard = () => {
                   </div>
                 </div>
                 <p className={`text-sm font-black ${t.amount > 0 ? 'text-primary' : 'text-white'}`}>
-                  {t.amount > 0 ? `+$${t.amount.toLocaleString()}` : `-$${Math.abs(t.amount).toLocaleString()}`}
+                  {t.amount > 0 ? `+${formatMoney(t.amount)}` : formatMoney(t.amount)}
                 </p>
               </div>
             ))}
           </div>
           <div className="mt-auto pt-6">
-            <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 text-center relative overflow-hidden group">
+            <Link to="/goals" className="block p-4 rounded-2xl bg-primary/10 border border-primary/20 text-center relative overflow-hidden group hover:border-primary/40 transition-colors">
               <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
               <div className="relative">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Savings Goal</p>
-                <p className="text-sm text-white font-bold mb-3">Trip to Japan: 82% reached</p>
-                <div className="w-full h-1.5 bg-background-dark rounded-full overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: '82%' }}></div>
-                </div>
+                {primaryGoal ? (
+                  <>
+                    <p className="text-sm text-white font-bold mb-3">
+                      {primaryGoal.name}: {primaryGoal.targetAmount > 0 ? Math.round(Math.min(100, (primaryGoal.currentAmount / primaryGoal.targetAmount) * 100)) : 0}% reached
+                    </p>
+                    <div className="w-full h-1.5 bg-background-dark rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${primaryGoal.targetAmount > 0 ? Math.min(100, (primaryGoal.currentAmount / primaryGoal.targetAmount) * 100) : 0}%` }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-[#9db9a6] font-bold mb-3">No goal yet — add one on Goals</p>
+                    <div className="w-full h-1.5 bg-background-dark rounded-full overflow-hidden">
+                      <div className="h-full bg-primary/30" style={{ width: '0%' }} />
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </div>

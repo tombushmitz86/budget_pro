@@ -1,5 +1,5 @@
 
-import { Transaction, BudgetGoal, Asset, PaymentMethod } from './types';
+import { Transaction, BudgetGoal, Asset, PaymentMethod, SavingsGoal } from './types';
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'pm1', name: 'N26', type: 'bank', icon: 'account_balance' },
@@ -49,4 +49,20 @@ export const SPENDING_TRENDS = [
   { name: 'May 20', value: 135 },
   { name: 'May 25', value: 210 },
   { name: 'Today', value: 165 },
+];
+
+/** Default savings goals (used when none stored); amounts in USD */
+export const DEFAULT_SAVINGS_GOALS: SavingsGoal[] = [
+  { id: 'g1', name: 'Trip to Japan', targetAmount: 5000, currentAmount: 4100 },
+];
+
+/** Fixed monthly expenses for the Plan page (recurring, negative = expense) */
+export const FIXED_MONTHLY_EXPENSES = [
+  { id: 'fx1', merchant: 'Rent', category: 'Housing' as const, amount: -1200, icon: 'home' },
+  { id: 'fx2', merchant: 'PGE Utilities', category: 'Utilities' as const, amount: -85.20, icon: 'bolt' },
+  { id: 'fx3', merchant: 'Netflix', category: 'Entertainment' as const, amount: -18.99, icon: 'movie' },
+  { id: 'fx4', merchant: 'Gym Membership', category: 'Health' as const, amount: -45, icon: 'fitness_center' },
+  { id: 'fx5', merchant: 'Internet', category: 'Utilities' as const, amount: -39.99, icon: 'router' },
+  { id: 'fx6', merchant: 'Spotify', category: 'Entertainment' as const, amount: -12.99, icon: 'music_note' },
+  { id: 'fx7', merchant: 'Phone Plan', category: 'Utilities' as const, amount: -35, icon: 'smartphone' },
 ];

@@ -1,9 +1,13 @@
 
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { CurrencyProvider } from './context/CurrencyContext';
+import { GoalsProvider } from './context/GoalsContext';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { Goals } from './pages/Goals';
 import { Budgets } from './pages/Budgets';
+import { Plan } from './pages/Plan';
 import { Assets } from './pages/Assets';
 import { Transactions } from './pages/Transactions';
 import { Settings } from './pages/Settings';
@@ -27,12 +31,16 @@ const AddTransaction = () => (
 
 const App: React.FC = () => {
   return (
+    <CurrencyProvider>
+    <GoalsProvider>
     <Router>
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/budgets" element={<Budgets />} />
+          <Route path="/plan" element={<Plan />} />
+          <Route path="/goals" element={<Goals />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/assets" element={<Assets />} />
           <Route path="/settings" element={<Settings />} />
@@ -41,6 +49,8 @@ const App: React.FC = () => {
         </Routes>
       </Layout>
     </Router>
+    </GoalsProvider>
+    </CurrencyProvider>
   );
 };
 
