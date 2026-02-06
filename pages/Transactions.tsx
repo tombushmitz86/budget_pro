@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { TRANSACTIONS, PAYMENT_METHODS } from '../constants';
+import { TRANSACTIONS, PAYMENT_METHODS, TRANSACTION_CATEGORIES, CATEGORY_DISPLAY_LABELS } from '../constants';
 import { Transaction, PaymentMethod, Category, RecurringInterval } from '../types';
 import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
 import { useN26Connection } from '../context/N26ConnectionContext';
 import { useDataSource } from '../context/DataSourceContext';
-import { fetchTransactions, createTransaction, updateTransaction } from '../services/transactionsApi';
+import { fetchTransactions, createTransaction, updateTransaction, deleteTransaction } from '../services/transactionsApi';
 import { Link } from 'react-router-dom';
 
 export const Transactions = () => {
@@ -19,6 +19,8 @@ export const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   
   // Filters
   const [activeAccount, setActiveAccount] = useState('All');
@@ -87,24 +89,73 @@ export const Transactions = () => {
     setEditingTransaction(null);
   };
 
-  const CATEGORIES: Category[] = ['Housing', 'Food & Dining', 'Transport', 'Utilities', 'Electronics', 'Health', 'Entertainment', 'Income', 'Shopping'];
-  const defaultIconForCategory: Record<string, string> = {
-    'Housing': 'home',
-    'Food & Dining': 'restaurant',
-    'Transport': 'directions_car',
-    'Utilities': 'bolt',
-    'Electronics': 'devices',
-    'Health': 'fitness_center',
-    'Entertainment': 'movie',
-    'Income': 'payments',
-    'Shopping': 'shopping_cart',
+  const handleDeleteTransaction = async (id: string) => {
+    if (!window.confirm('Delete this transaction? This cannot be undone.')) return;
+    if (editingTransaction?.id === id) setEditingTransaction(null);
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    if (isReal) {
+      try {
+        await deleteTransaction(id);
+        setList(prev => prev.filter(t => t.id !== id));
+      } catch (_) {
+        // keep list as-is on error
+      }
+    } else {
+      setList(prev => prev.filter(t => t.id !== id));
+    }
   };
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    const ids = filteredList.map(t => t.id);
+    const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(ids));
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} transaction${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    if (editingTransaction && ids.includes(editingTransaction.id)) setEditingTransaction(null);
+    if (isReal) {
+      try {
+        await Promise.all(ids.map(id => deleteTransaction(id)));
+        setList(prev => prev.filter(t => !selectedIds.has(t.id)));
+      } catch (_) {
+        loadList();
+      }
+    } else {
+      setList(prev => prev.filter(t => !selectedIds.has(t.id)));
+    }
+    setSelectedIds(new Set());
+  };
+
+  const CATEGORIES = TRANSACTION_CATEGORIES;
+  const defaultIconForCategory: Record<string, string> = {
+    INCOME_SALARY: 'payments', INCOME_OTHER: 'payments', HOUSING_RENT_MORTGAGE: 'home', UTILITIES: 'bolt',
+    GROCERIES: 'shopping_cart', DINING: 'restaurant', TRANSPORT_FUEL: 'directions_car', TRANSPORT_PUBLIC: 'directions_bus',
+    PARKING: 'local_parking', SHOPPING: 'shopping_cart', SUBSCRIPTIONS: 'subscriptions', HEALTH: 'fitness_center',
+    EDUCATION: 'school', CHILDCARE: 'child_care', ENTERTAINMENT: 'movie', TRAVEL: 'flight', INSURANCE: 'shield',
+    TAXES_FEES: 'receipt', CASH_WITHDRAWAL: 'atm', TRANSFERS_INTERNAL: 'swap_horiz', TRANSFERS_EXTERNAL: 'swap_horiz',
+    GIFTS_DONATIONS: 'card_giftcard', OTHER: 'receipt_long', UNCATEGORIZED: 'help_outline',
+  };
+  const categoryLabel = (c: string) => CATEGORY_DISPLAY_LABELS[c as Category] ?? c;
 
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction> & { date: string; type: 'one-time' | 'recurring'; recurringInterval: RecurringInterval; transactionKind: 'expense' | 'income' }>({
     merchant: '',
     amount: 0,
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    category: 'Food & Dining',
+    category: 'UNCATEGORIZED',
     paymentMethod: methods[0]?.name ?? 'N26',
     type: 'one-time',
     recurringInterval: 'monthly',
@@ -116,7 +167,7 @@ export const Transactions = () => {
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTransaction.merchant?.trim()) return;
-    const category = newTransaction.category ?? 'Food & Dining';
+    const category = newTransaction.category ?? 'UNCATEGORIZED';
     const icon = defaultIconForCategory[category] ?? 'receipt_long';
     const isRecurring = newTransaction.type === 'recurring';
     const interval = newTransaction.recurringInterval ?? 'monthly';
@@ -138,22 +189,25 @@ export const Transactions = () => {
       status: 'completed',
       icon,
     };
+    setAddError(null);
     if (isReal) {
       try {
         const created = await createTransaction(tx);
         setList(prev => [created, ...prev]);
-      } catch (_) {
-        setList(prev => [tx, ...prev]);
+        setShowAddModal(false);
+      } catch (err) {
+        setAddError(err instanceof Error ? err.message : 'Could not save to database. Is the server running (npm run server)?');
+        return;
       }
     } else {
       setList(prev => [tx, ...prev]);
+      setShowAddModal(false);
     }
-    setShowAddModal(false);
     setNewTransaction({
       merchant: '',
       amount: 0,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      category: 'Food & Dining',
+      category: 'UNCATEGORIZED',
       paymentMethod: methods[0]?.name ?? 'N26',
       type: 'one-time',
       recurringInterval: 'monthly',
@@ -262,11 +316,48 @@ export const Transactions = () => {
         </div>
       </div>
 
+      {/* Bulk actions bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-4 px-6 py-3 rounded-2xl bg-primary/10 border border-primary/20">
+          <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="px-4 py-2 rounded-xl bg-white/5 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+            >
+              Clear selection
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/30 transition-all"
+            >
+              Delete {selectedIds.size}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Ledger Table */}
       <div className="glass-card rounded-3xl border border-white/5 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-white/5 border-b border-white/5">
             <tr>
+              <th className="w-12 px-4 py-5">
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  className="flex items-center justify-center size-8 rounded-lg border border-white/20 text-white/60 hover:bg-white/10 hover:border-primary/50 hover:text-primary transition-all"
+                  title={filteredList.length > 0 && filteredList.every(t => selectedIds.has(t.id)) ? 'Deselect all' : 'Select all'}
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    {filteredList.length > 0 && filteredList.every(t => selectedIds.has(t.id)) ? 'check_box' : 'check_box_outline_blank'}
+                  </span>
+                </button>
+              </th>
               <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Entity & Date</th>
               <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Method</th>
               <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-500">Category</th>
@@ -278,7 +369,7 @@ export const Transactions = () => {
           <tbody className="divide-y divide-white/5">
             {listLoading ? (
               <tr>
-                <td colSpan={6} className="px-8 py-16 text-center">
+                <td colSpan={7} className="px-8 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     <p className="text-[#9db9a6] text-sm font-bold uppercase tracking-widest">Loading transactions…</p>
@@ -287,7 +378,18 @@ export const Transactions = () => {
               </tr>
             ) : (
             filteredList.map((t) => (
-              <tr key={t.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setEditingTransaction({ ...t, recurringInterval: t.type === 'recurring' ? (t.recurringInterval ?? 'monthly') : undefined })}>
+              <tr key={t.id} className={`group hover:bg-white/[0.02] transition-colors cursor-pointer ${selectedIds.has(t.id) ? 'bg-primary/5' : ''}`} onClick={() => setEditingTransaction({ ...t, recurringInterval: t.type === 'recurring' ? (t.recurringInterval ?? 'monthly') : undefined })}>
+                <td className="w-12 px-4 py-6" onClick={e => toggleSelect(t.id, e)}>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center size-8 rounded-lg border border-white/20 text-white/60 hover:bg-white/10 hover:border-primary/50 hover:text-primary transition-all"
+                    aria-label={selectedIds.has(t.id) ? 'Deselect' : 'Select'}
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      {selectedIds.has(t.id) ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                  </button>
+                </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-4">
                     <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-[#9db9a6] group-hover:text-primary transition-colors">
@@ -305,7 +407,7 @@ export const Transactions = () => {
                   </span>
                 </td>
                 <td className="px-8 py-6">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t.category}</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{categoryLabel(t.category)}</p>
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-2">
@@ -359,11 +461,21 @@ export const Transactions = () => {
                 <h3 className="text-white text-xl font-black uppercase italic tracking-widest">Add missing transaction</h3>
                 <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mt-1">From another source – mark as fixed (recurring) or one-time</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="size-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-colors">
+              <button onClick={() => { setShowAddModal(false); setAddError(null); }} className="size-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-colors">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             
+            {!isReal && (
+              <div className="mx-8 mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-[10px] font-bold uppercase tracking-widest">
+                Mock data: transactions are not saved to the database. Switch to <strong>Real data (DB)</strong> in the bar above to persist.
+              </div>
+            )}
+            {addError && (
+              <div className="mx-8 mb-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-200 text-[10px] font-bold uppercase tracking-widest">
+                {addError}
+              </div>
+            )}
             <form onSubmit={handleAddTransaction} className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div className="col-span-2">
@@ -444,9 +556,9 @@ export const Transactions = () => {
                     value={newTransaction.category ?? ''}
                     onChange={(e) => setNewTransaction({ ...newTransaction, category: e.target.value as Category })}
                   >
-                    {CATEGORIES.map(c => (
-                      <option key={c} value={c} className="bg-background-dark">{c}</option>
-                    ))}
+{CATEGORIES.map(c => (
+                    <option key={c} value={c} className="bg-background-dark">{categoryLabel(c)}</option>
+                  ))}
                   </select>
                 </div>
 
@@ -578,8 +690,8 @@ export const Transactions = () => {
                     value={editingTransaction.category}
                     onChange={(e) => setEditingTransaction({...editingTransaction, category: e.target.value as any})}
                   >
-                    {['Housing', 'Food & Dining', 'Transport', 'Utilities', 'Electronics', 'Health', 'Entertainment', 'Income', 'Shopping'].map(c => (
-                      <option key={c} value={c} className="bg-background-dark">{c}</option>
+                    {CATEGORIES.map(c => (
+                      <option key={c} value={c} className="bg-background-dark">{categoryLabel(c)}</option>
                     ))}
                   </select>
                 </div>
@@ -633,13 +745,20 @@ export const Transactions = () => {
                   onClick={() => setEditingTransaction(null)}
                   className="flex-1 py-4 rounded-2xl bg-white/5 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
                 >
-                  Discard Changes
+                  Discard
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => editingTransaction && handleDeleteTransaction(editingTransaction.id)}
+                  className="py-4 px-6 rounded-2xl bg-red-500/20 text-red-400 font-black text-[10px] uppercase tracking-widest hover:bg-red-500/30 transition-all border border-red-500/30"
+                >
+                  Delete
                 </button>
                 <button 
                   type="submit"
                   className="flex-1 py-4 rounded-2xl bg-primary text-background-dark font-black text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-lg shadow-primary/20"
                 >
-                  Commit Entry
+                  Save
                 </button>
               </div>
             </form>

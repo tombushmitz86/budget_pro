@@ -1,12 +1,15 @@
 # Running BudgetPro
 
+**To save transactions to the database:** run both the API server and the frontend. Use two terminals: `npm run server` (port 3001), then `npm run dev` (port 3000). Open http://localhost:3000 and set **Real data (DB)** in the bar.
+
 ## NPM commands
 
-- **Development** (hot reload on port 3000):
+- **Development** (hot reload on port 3000; proxies `/api` to backend on 3001):
   ```bash
   npm install
   npm run dev
   ```
+  For DB persistence, also run in another terminal: `npm run server`.
 - **Production build**:
   ```bash
   npm run build

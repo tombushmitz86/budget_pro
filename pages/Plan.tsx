@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FIXED_MONTHLY_EXPENSES } from '../constants';
 import type { Category } from '../types';
+import { CATEGORY_DISPLAY_LABELS } from '../constants';
 import { useCurrency } from '../context/CurrencyContext';
 import { useDataSource } from '../context/DataSourceContext';
 import { fetchTransactions } from '../services/transactionsApi';
@@ -197,7 +198,7 @@ const FixedRow: React.FC<FixedRowProps> = ({ item, formatMoney, onEliminate, onR
           <p className={`font-bold text-white ${item.status === 'eliminated' ? 'line-through text-gray-500' : ''}`}>
             {item.merchant}
           </p>
-          <p className="text-[#9db9a6] text-xs font-medium uppercase tracking-wider">{item.category}</p>
+          <p className="text-[#9db9a6] text-xs font-medium uppercase tracking-wider">{CATEGORY_DISPLAY_LABELS[item.category] ?? item.category}</p>
         </div>
       </div>
 

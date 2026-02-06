@@ -15,6 +15,7 @@ import {
 } from './n26.js';
 import { initDb } from './db.js';
 import { listTransactions, createTransaction, updateTransaction, deleteTransaction } from './transactionsDb.js';
+import { parseCsvToTransactions } from './csvImport.js';
 
 initDb();
 
@@ -115,9 +116,40 @@ app.delete('/api/transactions/:id', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+// CSV Import: body { csv: "..." } or raw text. Classifier runs per row via createTransaction.
+app.post('/api/transactions/import', (req, res) => {
+  try {
+    let csvText = '';
+    if (typeof req.body === 'string') {
+      csvText = req.body;
+    } else if (req.body && typeof req.body.csv === 'string') {
+      csvText = req.body.csv;
+    } else if (req.body && typeof req.body === 'object' && req.body.data) {
+      csvText = req.body.data;
+    }
+    const toCreate = parseCsvToTransactions(csvText);
+    const created = [];
+    for (const tx of toCreate) {
+      const saved = createTransaction(tx);
+      created.push(saved);
+    }
+    res.status(201).json({ created: created.length, transactions: created });
+  } catch (err) {
+    console.error('POST /api/transactions/import:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const server = app.listen(PORT, () => {
   console.log(`BudgetPro API listening on http://localhost:${PORT}`);
   if (!n26IsConfigured()) {
     console.warn('N26 not configured: set N26_TOKEN_URL, N26_CLIENT_ID, N26_CLIENT_SECRET for token exchange.');
   }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\nPort ${PORT} is already in use. Free it with:\n  lsof -i :${PORT}   # find PID\n  kill <PID>       # or: kill -9 <PID>\n`);
+  }
+  throw err;
 });

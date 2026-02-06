@@ -15,6 +15,11 @@ export interface Transaction {
   type: 'one-time' | 'recurring';
   /** Set when type === 'recurring'; default 'monthly'. */
   recurringInterval?: RecurringInterval;
+  /** Classification metadata (optional, for debugging/UI). */
+  categorySource?: 'OVERRIDE' | 'RULE' | 'FALLBACK';
+  categoryConfidence?: number;
+  categoryFingerprint?: string;
+  matchedRuleId?: string | null;
 }
 
 export interface PaymentMethod {
@@ -26,16 +31,54 @@ export interface PaymentMethod {
 
 export type Currency = 'USD' | 'EUR' | 'ILS';
 
-export type Category = 
-  | 'Housing' 
-  | 'Food & Dining' 
-  | 'Transport' 
-  | 'Utilities' 
-  | 'Electronics' 
-  | 'Health' 
-  | 'Entertainment' 
-  | 'Income' 
-  | 'Shopping';
+/** Legacy display categories (used by Budgets/Plan for grouping). */
+export type LegacyCategory =
+  | 'Housing' | 'Food & Dining' | 'Transport' | 'Utilities' | 'Electronics' | 'Health' | 'Entertainment' | 'Income' | 'Shopping';
+
+/** Fixed category enum for transaction classification (storage and outputs). */
+export type Category =
+  | 'INCOME_SALARY'
+  | 'INCOME_OTHER'
+  | 'HOUSING_RENT_MORTGAGE'
+  | 'UTILITIES'
+  | 'GROCERIES'
+  | 'DINING'
+  | 'TRANSPORT_FUEL'
+  | 'TRANSPORT_PUBLIC'
+  | 'PARKING'
+  | 'SHOPPING'
+  | 'SUBSCRIPTIONS'
+  | 'HEALTH'
+  | 'EDUCATION'
+  | 'CHILDCARE'
+  | 'ENTERTAINMENT'
+  | 'TRAVEL'
+  | 'INSURANCE'
+  | 'TAXES_FEES'
+  | 'CASH_WITHDRAWAL'
+  | 'TRANSFERS_INTERNAL'
+  | 'TRANSFERS_EXTERNAL'
+  | 'GIFTS_DONATIONS'
+  | 'OTHER'
+  | 'UNCATEGORIZED';
+
+/** Classification result from internal classifier. */
+export interface ClassificationResult {
+  category: Category;
+  confidence: number;
+  source: 'OVERRIDE' | 'RULE' | 'FALLBACK';
+  fingerprint: string;
+  matchedRuleId?: string;
+  matchedSignals?: string[];
+}
+
+/** Optional classification metadata on transaction (persisted when available). */
+export interface ClassificationMetadata {
+  categorySource?: 'OVERRIDE' | 'RULE' | 'FALLBACK';
+  categoryConfidence?: number;
+  categoryFingerprint?: string;
+  matchedRuleId?: string | null;
+}
 
 export interface BudgetGoal {
   id: string;

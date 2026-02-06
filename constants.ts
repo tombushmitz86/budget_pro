@@ -1,5 +1,41 @@
 
-import { Transaction, BudgetGoal, Asset, PaymentMethod, SavingsGoal } from './types';
+import type { Transaction, BudgetGoal, Asset, PaymentMethod, SavingsGoal, Category } from './types';
+
+/** All classifier categories (fixed enum). */
+export const TRANSACTION_CATEGORIES: Category[] = [
+  'INCOME_SALARY', 'INCOME_OTHER', 'HOUSING_RENT_MORTGAGE', 'UTILITIES', 'GROCERIES', 'DINING',
+  'TRANSPORT_FUEL', 'TRANSPORT_PUBLIC', 'PARKING', 'SHOPPING', 'SUBSCRIPTIONS', 'HEALTH', 'EDUCATION',
+  'CHILDCARE', 'ENTERTAINMENT', 'TRAVEL', 'INSURANCE', 'TAXES_FEES', 'CASH_WITHDRAWAL',
+  'TRANSFERS_INTERNAL', 'TRANSFERS_EXTERNAL', 'GIFTS_DONATIONS', 'OTHER', 'UNCATEGORIZED',
+];
+
+/** Display labels for transaction categories. */
+export const CATEGORY_DISPLAY_LABELS: Record<Category, string> = {
+  INCOME_SALARY: 'Salary',
+  INCOME_OTHER: 'Other income',
+  HOUSING_RENT_MORTGAGE: 'Rent / Mortgage',
+  UTILITIES: 'Utilities',
+  GROCERIES: 'Groceries',
+  DINING: 'Dining',
+  TRANSPORT_FUEL: 'Fuel',
+  TRANSPORT_PUBLIC: 'Public transport',
+  PARKING: 'Parking',
+  SHOPPING: 'Shopping',
+  SUBSCRIPTIONS: 'Subscriptions',
+  HEALTH: 'Health',
+  EDUCATION: 'Education',
+  CHILDCARE: 'Childcare',
+  ENTERTAINMENT: 'Entertainment',
+  TRAVEL: 'Travel',
+  INSURANCE: 'Insurance',
+  TAXES_FEES: 'Taxes & fees',
+  CASH_WITHDRAWAL: 'Cash withdrawal',
+  TRANSFERS_INTERNAL: 'Internal transfer',
+  TRANSFERS_EXTERNAL: 'External transfer',
+  GIFTS_DONATIONS: 'Gifts & donations',
+  OTHER: 'Other',
+  UNCATEGORIZED: 'Uncategorized',
+};
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'pm1', name: 'N26', type: 'bank', icon: 'account_balance' },
@@ -10,13 +46,13 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 export const TRANSACTIONS: Transaction[] = [
-  { id: '1', date: 'Oct 24, 2023', merchant: 'Whole Foods Market', category: 'Food & Dining', amount: -142.50, status: 'completed', icon: 'shopping_cart', paymentMethod: 'Apple Pay', type: 'one-time' },
-  { id: '2', date: 'Oct 23, 2023', merchant: 'Monthly Salary', category: 'Income', amount: 4200.00, status: 'completed', icon: 'payments', paymentMethod: 'Bank Transfer', type: 'recurring' },
-  { id: '3', date: 'Oct 22, 2023', merchant: 'PGE Utilities', category: 'Utilities', amount: -85.20, status: 'flagged', icon: 'bolt', paymentMethod: 'N26', type: 'recurring' },
-  { id: '4', date: 'Oct 21, 2023', merchant: 'Netflix Subscription', category: 'Entertainment', amount: -18.99, status: 'completed', icon: 'movie', paymentMethod: 'Credit Card', type: 'recurring' },
-  { id: '5', date: 'Oct 20, 2023', merchant: 'Chevron Gas Station', category: 'Transport', amount: -54.00, status: 'completed', icon: 'directions_car', paymentMethod: 'Apple Pay', type: 'one-time' },
-  { id: '6', date: 'Oct 19, 2023', merchant: 'Apple Store', category: 'Electronics', amount: -1299.00, status: 'completed', icon: 'home', paymentMethod: 'Credit Card', type: 'one-time' },
-  { id: '7', date: 'Oct 18, 2023', merchant: 'Gym Membership', category: 'Health', amount: -45.00, status: 'completed', icon: 'fitness_center', paymentMethod: 'N26', type: 'recurring' },
+  { id: '1', date: 'Oct 24, 2023', merchant: 'Whole Foods Market', category: 'GROCERIES', amount: -142.50, status: 'completed', icon: 'shopping_cart', paymentMethod: 'Apple Pay', type: 'one-time' },
+  { id: '2', date: 'Oct 23, 2023', merchant: 'Monthly Salary', category: 'INCOME_SALARY', amount: 4200.00, status: 'completed', icon: 'payments', paymentMethod: 'Bank Transfer', type: 'recurring' },
+  { id: '3', date: 'Oct 22, 2023', merchant: 'PGE Utilities', category: 'UTILITIES', amount: -85.20, status: 'flagged', icon: 'bolt', paymentMethod: 'N26', type: 'recurring' },
+  { id: '4', date: 'Oct 21, 2023', merchant: 'Netflix Subscription', category: 'SUBSCRIPTIONS', amount: -18.99, status: 'completed', icon: 'movie', paymentMethod: 'Credit Card', type: 'recurring' },
+  { id: '5', date: 'Oct 20, 2023', merchant: 'Chevron Gas Station', category: 'TRANSPORT_FUEL', amount: -54.00, status: 'completed', icon: 'directions_car', paymentMethod: 'Apple Pay', type: 'one-time' },
+  { id: '6', date: 'Oct 19, 2023', merchant: 'Apple Store', category: 'SHOPPING', amount: -1299.00, status: 'completed', icon: 'home', paymentMethod: 'Credit Card', type: 'one-time' },
+  { id: '7', date: 'Oct 18, 2023', merchant: 'Gym Membership', category: 'HEALTH', amount: -45.00, status: 'completed', icon: 'fitness_center', paymentMethod: 'N26', type: 'recurring' },
 ];
 
 export const BUDGETS: BudgetGoal[] = [
@@ -58,11 +94,11 @@ export const DEFAULT_SAVINGS_GOALS: SavingsGoal[] = [
 
 /** Fixed monthly expenses for the Plan page (recurring, negative = expense) */
 export const FIXED_MONTHLY_EXPENSES = [
-  { id: 'fx1', merchant: 'Rent', category: 'Housing' as const, amount: -1200, icon: 'home' },
-  { id: 'fx2', merchant: 'PGE Utilities', category: 'Utilities' as const, amount: -85.20, icon: 'bolt' },
-  { id: 'fx3', merchant: 'Netflix', category: 'Entertainment' as const, amount: -18.99, icon: 'movie' },
-  { id: 'fx4', merchant: 'Gym Membership', category: 'Health' as const, amount: -45, icon: 'fitness_center' },
-  { id: 'fx5', merchant: 'Internet', category: 'Utilities' as const, amount: -39.99, icon: 'router' },
-  { id: 'fx6', merchant: 'Spotify', category: 'Entertainment' as const, amount: -12.99, icon: 'music_note' },
-  { id: 'fx7', merchant: 'Phone Plan', category: 'Utilities' as const, amount: -35, icon: 'smartphone' },
+  { id: 'fx1', merchant: 'Rent', category: 'HOUSING_RENT_MORTGAGE' as const, amount: -1200, icon: 'home' },
+  { id: 'fx2', merchant: 'PGE Utilities', category: 'UTILITIES' as const, amount: -85.20, icon: 'bolt' },
+  { id: 'fx3', merchant: 'Netflix', category: 'SUBSCRIPTIONS' as const, amount: -18.99, icon: 'movie' },
+  { id: 'fx4', merchant: 'Gym Membership', category: 'HEALTH' as const, amount: -45, icon: 'fitness_center' },
+  { id: 'fx5', merchant: 'Internet', category: 'UTILITIES' as const, amount: -39.99, icon: 'router' },
+  { id: 'fx6', merchant: 'Spotify', category: 'SUBSCRIPTIONS' as const, amount: -12.99, icon: 'music_note' },
+  { id: 'fx7', merchant: 'Phone Plan', category: 'UTILITIES' as const, amount: -35, icon: 'smartphone' },
 ];

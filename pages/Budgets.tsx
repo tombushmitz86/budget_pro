@@ -7,17 +7,23 @@ import { fetchTransactions } from '../services/transactionsApi';
 import type { BudgetGoal } from '../types';
 import type { Transaction } from '../types';
 
-/** Map transaction category to budget category for aggregating spent */
+/** Map classifier category to budget category for aggregating spent */
 const TX_CATEGORY_TO_BUDGET: Record<string, string> = {
-  'Food & Dining': 'Groceries',
-  'Shopping': 'Groceries',
-  'Housing': 'Rent & Utilities',
-  'Utilities': 'Rent & Utilities',
-  'Entertainment': 'Entertainment',
-  'Transport': 'Transport',
-  'Electronics': 'Investment',
-  'Health': 'Groceries',
-  'Income': 'Investment',
+  GROCERIES: 'Groceries',
+  DINING: 'Groceries',
+  SHOPPING: 'Groceries',
+  HOUSING_RENT_MORTGAGE: 'Rent & Utilities',
+  UTILITIES: 'Rent & Utilities',
+  ENTERTAINMENT: 'Entertainment',
+  TRANSPORT_FUEL: 'Transport',
+  TRANSPORT_PUBLIC: 'Transport',
+  PARKING: 'Transport',
+  HEALTH: 'Groceries',
+  SUBSCRIPTIONS: 'Entertainment',
+  INCOME_SALARY: 'Investment',
+  INCOME_OTHER: 'Investment',
+  TRANSFERS_INTERNAL: 'Investment',
+  TRANSFERS_EXTERNAL: 'Investment',
 };
 
 export const Budgets = () => {

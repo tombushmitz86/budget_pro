@@ -39,6 +39,18 @@ CREATE TABLE IF NOT EXISTS transactions (
 -- Index for listing by date
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+
+-- Classification metadata (optional)
+-- category_source, category_confidence, category_fingerprint, matched_rule_id added via ALTER below.
+
+-- Merchant memory overrides (fingerprint -> category)
+CREATE TABLE IF NOT EXISTS merchant_overrides (
+  fingerprint TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  example_merchant TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_merchant_overrides_updated ON merchant_overrides(updated_at);
 `;
 
 export function initDb() {
@@ -46,9 +58,16 @@ export function initDb() {
   ensureDataDir();
   db = new Database(DB_PATH);
   db.exec(SCHEMA);
-  try {
-    db.exec('ALTER TABLE transactions ADD COLUMN recurring_interval TEXT');
-  } catch (_) {}
+  const alterTx = [
+    'ALTER TABLE transactions ADD COLUMN recurring_interval TEXT',
+    'ALTER TABLE transactions ADD COLUMN category_source TEXT',
+    'ALTER TABLE transactions ADD COLUMN category_confidence REAL',
+    'ALTER TABLE transactions ADD COLUMN category_fingerprint TEXT',
+    'ALTER TABLE transactions ADD COLUMN matched_rule_id TEXT',
+  ];
+  alterTx.forEach((sql) => {
+    try { db.exec(sql); } catch (_) {}
+  });
   return db;
 }
 

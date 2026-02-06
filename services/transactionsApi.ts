@@ -1,10 +1,13 @@
 /**
  * Transactions API client (used when data source is "real").
+ * In dev, empty base uses Vite proxy (/api -> backend). In preview/build, use VITE_API_URL or default to localhost:3001.
  */
 
 import type { Transaction } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? '' : 'http://localhost:3001');
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
@@ -18,7 +21,13 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? res.statusText ?? String(res.status));
+    const msg = (data as { error?: string }).error ?? res.statusText ?? String(res.status);
+    if (res.status === 404) {
+      throw new Error(
+        'API not found (404). Start the backend with: npm run server (in budget_pro). Use npm run dev for the app so /api is proxied to port 3001.'
+      );
+    }
+    throw new Error(msg);
   }
   return data as T;
 }

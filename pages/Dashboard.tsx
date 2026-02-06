@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, Tooltip, XAxis } from 'recharts';
-import { CATEGORY_BREAKDOWN, SPENDING_TRENDS, TRANSACTIONS } from '../constants';
+import { CATEGORY_BREAKDOWN, SPENDING_TRENDS, TRANSACTIONS, CATEGORY_DISPLAY_LABELS } from '../constants';
 import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
 import { useGoals } from '../context/GoalsContext';
@@ -211,7 +211,7 @@ export const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm font-black text-white group-hover:text-primary transition-colors">{t.merchant}</p>
-                      <p className="text-[10px] text-[#9db9a6] font-bold uppercase tracking-tight">{t.category} • {t.date}</p>
+                      <p className="text-[10px] text-[#9db9a6] font-bold uppercase tracking-tight">{CATEGORY_DISPLAY_LABELS[t.category] ?? t.category} • {t.date}</p>
                     </div>
                   </div>
                   <p className={`text-sm font-black ${t.amount > 0 ? 'text-primary' : 'text-white'}`}>

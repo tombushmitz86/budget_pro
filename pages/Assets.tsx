@@ -120,7 +120,7 @@ export const Assets = () => {
                 </p>
               </div>
             </div>
-          )))}
+          ))}
         </div>
       </div>
 

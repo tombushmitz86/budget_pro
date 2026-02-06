@@ -15,7 +15,7 @@ export class IntelligenceService {
     // Local deterministic logic to simulate AI analysis
     const expenses = transactions.filter(t => t.amount < 0);
     const totalSpent = Math.abs(expenses.reduce((sum, t) => sum + t.amount, 0));
-    const foodSpent = Math.abs(expenses.filter(t => t.category === 'Food & Dining').reduce((sum, t) => sum + t.amount, 0));
+    const foodSpent = Math.abs(expenses.filter(t => t.category === 'GROCERIES' || t.category === 'DINING').reduce((sum, t) => sum + t.amount, 0));
     
     if (foodSpent > totalSpent * 0.4) {
       return "Dining and groceries account for over 40% of your outgoings. Consolidating meal prep could save you ~$300/mo.";
@@ -36,18 +36,18 @@ export class IntelligenceService {
     
     const mocks: Record<string, any[]> = {
       'N26': [
-        { merchant: 'Lidl Berlin', amount: -42.50, category: 'Food & Dining', icon: 'shopping_basket', type: 'one-time' },
-        { merchant: 'Wolt Delivery', amount: -28.90, category: 'Food & Dining', icon: 'delivery_dining', type: 'one-time' },
-        { merchant: 'Bolt Ride', amount: -15.20, category: 'Transport', icon: 'electric_scooter', type: 'one-time' },
-        { merchant: 'FitX Membership', amount: -25.00, category: 'Health', icon: 'fitness_center', type: 'recurring' },
-        { merchant: 'Internet Fiber', amount: -39.99, category: 'Utilities', icon: 'router', type: 'recurring' }
+        { merchant: 'Lidl Berlin', amount: -42.50, category: 'GROCERIES', icon: 'shopping_basket', type: 'one-time' },
+        { merchant: 'Wolt Delivery', amount: -28.90, category: 'DINING', icon: 'delivery_dining', type: 'one-time' },
+        { merchant: 'Bolt Ride', amount: -15.20, category: 'TRANSPORT_PUBLIC', icon: 'electric_scooter', type: 'one-time' },
+        { merchant: 'FitX Membership', amount: -25.00, category: 'HEALTH', icon: 'fitness_center', type: 'recurring' },
+        { merchant: 'Internet Fiber', amount: -39.99, category: 'UTILITIES', icon: 'router', type: 'recurring' }
       ],
       'Apple': [
-        { merchant: 'Starbucks Coffee', amount: -6.50, category: 'Food & Dining', icon: 'coffee', type: 'one-time' },
-        { merchant: 'App Store', amount: -9.99, category: 'Entertainment', icon: 'shop', type: 'recurring' },
-        { merchant: 'NYC Transit', amount: -2.90, category: 'Transport', icon: 'subway', type: 'one-time' },
-        { merchant: 'CVS Pharmacy', amount: -22.40, category: 'Health', icon: 'medication', type: 'one-time' },
-        { merchant: 'iCloud Storage', amount: -0.99, category: 'Utilities', icon: 'cloud', type: 'recurring' }
+        { merchant: 'Starbucks Coffee', amount: -6.50, category: 'DINING', icon: 'coffee', type: 'one-time' },
+        { merchant: 'App Store', amount: -9.99, category: 'SUBSCRIPTIONS', icon: 'shop', type: 'recurring' },
+        { merchant: 'NYC Transit', amount: -2.90, category: 'TRANSPORT_PUBLIC', icon: 'subway', type: 'one-time' },
+        { merchant: 'CVS Pharmacy', amount: -22.40, category: 'HEALTH', icon: 'medication', type: 'one-time' },
+        { merchant: 'iCloud Storage', amount: -0.99, category: 'UTILITIES', icon: 'cloud', type: 'recurring' }
       ]
     };
 
