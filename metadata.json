@@ -1,0 +1,9 @@
+
+{
+  "name": "BudgetPro - Wealth Management Suite",
+  "description": "A comprehensive personal finance and wealth management dashboard featuring real-time spending insights, budget planning, and wealth projections.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

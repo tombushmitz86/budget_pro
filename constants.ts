@@ -1,0 +1,52 @@
+
+import { Transaction, BudgetGoal, Asset, PaymentMethod } from './types';
+
+export const PAYMENT_METHODS: PaymentMethod[] = [
+  { id: 'pm1', name: 'N26', type: 'bank', icon: 'account_balance' },
+  { id: 'pm2', name: 'Apple Pay', type: 'wallet', icon: 'apple' },
+  { id: 'pm3', name: 'Credit Card', type: 'card', icon: 'credit_card' },
+  { id: 'pm4', name: 'Bank Transfer', type: 'bank', icon: 'account_balance' },
+  { id: 'pm5', name: 'Cash', type: 'cash', icon: 'payments' },
+];
+
+export const TRANSACTIONS: Transaction[] = [
+  { id: '1', date: 'Oct 24, 2023', merchant: 'Whole Foods Market', category: 'Food & Dining', amount: -142.50, status: 'completed', icon: 'shopping_cart', paymentMethod: 'Apple Pay', type: 'one-time' },
+  { id: '2', date: 'Oct 23, 2023', merchant: 'Monthly Salary', category: 'Income', amount: 4200.00, status: 'completed', icon: 'payments', paymentMethod: 'Bank Transfer', type: 'recurring' },
+  { id: '3', date: 'Oct 22, 2023', merchant: 'PGE Utilities', category: 'Utilities', amount: -85.20, status: 'flagged', icon: 'bolt', paymentMethod: 'N26', type: 'recurring' },
+  { id: '4', date: 'Oct 21, 2023', merchant: 'Netflix Subscription', category: 'Entertainment', amount: -18.99, status: 'completed', icon: 'movie', paymentMethod: 'Credit Card', type: 'recurring' },
+  { id: '5', date: 'Oct 20, 2023', merchant: 'Chevron Gas Station', category: 'Transport', amount: -54.00, status: 'completed', icon: 'directions_car', paymentMethod: 'Apple Pay', type: 'one-time' },
+  { id: '6', date: 'Oct 19, 2023', merchant: 'Apple Store', category: 'Electronics', amount: -1299.00, status: 'completed', icon: 'home', paymentMethod: 'Credit Card', type: 'one-time' },
+  { id: '7', date: 'Oct 18, 2023', merchant: 'Gym Membership', category: 'Health', amount: -45.00, status: 'completed', icon: 'fitness_center', paymentMethod: 'N26', type: 'recurring' },
+];
+
+export const BUDGETS: BudgetGoal[] = [
+  { id: 'b1', category: 'Groceries', spent: 620, limit: 800, icon: 'restaurant', color: '#13ec5b', description: 'Household essentials' },
+  { id: 'b2', category: 'Rent & Utilities', spent: 1850, limit: 1850, icon: 'home', color: '#3b82f6', description: 'Monthly fixed costs' },
+  { id: 'b3', category: 'Entertainment', spent: 450, limit: 400, icon: 'movie', color: '#fa5538', description: 'Movies, Games, Outings' },
+  { id: 'b4', category: 'Transport', spent: 120.50, limit: 300, icon: 'directions_car', color: '#f59e0b', description: 'Fuel and Commute' },
+  { id: 'b5', category: 'Investment', spent: 300, limit: 500, icon: 'payments', color: '#10b981', description: 'Stock market & IRA' },
+];
+
+export const ASSETS: Asset[] = [
+  { id: 'a1', name: 'Real Estate', value: 650000, change: 5.2, type: 'physical', trend: '+5.2% YOY', imageUrl: 'https://picsum.photos/seed/house/600/400' },
+  { id: 'a2', name: 'Stock Portfolio', value: 320000, change: 12.4, type: 'market', trend: '+12.4% YTD', imageUrl: 'https://picsum.photos/seed/stock/600/400' },
+  { id: 'a3', name: 'Retirement 401k', value: 180000, change: 8.1, type: 'locked', trend: '+8.1% YTD', imageUrl: 'https://picsum.photos/seed/retirement/600/400' },
+  { id: 'a4', name: 'Cash & Savings', value: 100000, change: 0.5, type: 'liquid', trend: '+0.5% APY', imageUrl: 'https://picsum.photos/seed/cash/600/400' },
+];
+
+export const CATEGORY_BREAKDOWN = [
+  { name: 'Housing', value: 60, color: '#13ec5b' },
+  { name: 'Food', value: 15, color: '#fa5538' },
+  { name: 'Travel', value: 10, color: '#3b82f6' },
+  { name: 'Bills', value: 15, color: '#a855f7' },
+];
+
+export const SPENDING_TRENDS = [
+  { name: 'May 1', value: 120 },
+  { name: 'May 5', value: 90 },
+  { name: 'May 10', value: 180 },
+  { name: 'May 15', value: 270 },
+  { name: 'May 20', value: 135 },
+  { name: 'May 25', value: 210 },
+  { name: 'Today', value: 165 },
+];
