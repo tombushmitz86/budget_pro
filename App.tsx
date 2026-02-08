@@ -15,6 +15,7 @@ import { Assets } from './pages/Assets';
 import { Transactions } from './pages/Transactions';
 import { Settings } from './pages/Settings';
 import { Reports } from './pages/Reports';
+import { MerchantRules } from './pages/MerchantRules';
 
 const AddTransaction = () => (
   <div className="p-20 text-center glass-card rounded-3xl border-dashed border-2 border-border-dark">
@@ -41,6 +42,7 @@ const App: React.FC = () => {
           <Route path="/connect/n26/callback" element={<N26ConnectCallback />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/assets" element={<Assets />} />
+          <Route path="/merchant-rules" element={<MerchantRules />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/add" element={<AddTransaction />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,8 +5,9 @@
 
 import { getDb } from './db.js';
 import { applyClassification, recordUserCategory, FALLBACK_CATEGORY } from './transactionClassifier.js';
+import { getCustomCategories } from './categoriesDb.js';
 
-const VALID_CATEGORIES = new Set([
+const BUILTIN_CATEGORIES = new Set([
   'INCOME_SALARY', 'INCOME_OTHER', 'HOUSING_RENT_MORTGAGE', 'UTILITIES', 'GROCERIES', 'DINING',
   'TRANSPORT_FUEL', 'TRANSPORT_PUBLIC', 'PARKING', 'SHOPPING', 'SUBSCRIPTIONS', 'HEALTH', 'EDUCATION',
   'CHILDCARE', 'ENTERTAINMENT', 'TRAVEL', 'INSURANCE', 'TAXES_FEES', 'CASH_WITHDRAWAL',
@@ -14,7 +15,10 @@ const VALID_CATEGORIES = new Set([
 ]);
 
 function coerceCategory(value) {
-  if (value != null && VALID_CATEGORIES.has(value)) return value;
+  if (value == null) return FALLBACK_CATEGORY;
+  if (BUILTIN_CATEGORIES.has(value)) return value;
+  const custom = getCustomCategories();
+  if (custom.includes(value)) return value;
   return FALLBACK_CATEGORY;
 }
 
@@ -120,7 +124,12 @@ export function updateTransaction(id, tx) {
     matchedRuleId: tx.matchedRuleId !== undefined ? tx.matchedRuleId : current.matchedRuleId,
   };
   if (categoryChanged) {
-    const txForOverride = { ...current, ...toSave };
+    const txForOverride = {
+      ...current,
+      ...toSave,
+      merchant: (toSave.merchant || current.merchant || '').trim() || current.merchant,
+    };
+    console.log('[Merchant rules] Category changed for transaction:', current.merchant, '->', toSave.category);
     recordUserCategory(txForOverride, toSave.category);
     toSave = { ...toSave, ...txForOverride };
   }
@@ -152,4 +161,10 @@ export function deleteTransaction(id) {
   const db = getDb();
   const result = db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
   return result.changes > 0;
+}
+
+export function deleteAllTransactions() {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM transactions').run();
+  return result.changes;
 }

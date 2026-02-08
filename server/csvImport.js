@@ -1,7 +1,10 @@
 /**
- * CSV import: parse bank-style CSV (e.g. N26) into transaction-like rows.
- * No external API calls. Each row is then passed to createTransaction (classifier runs per row).
+ * CSV import: parse bank-style CSV into transaction-like rows.
+ * Supports the bank feed format: date, amount, raw_merchant, canonical_merchant, merchant_normalized, description, instrument, source, recurring.
+ * Stable id per row for idempotency (same row = same id, skip if already in DB).
  */
+
+import crypto from 'crypto';
 
 /**
  * Parse CSV text into rows of key-value objects (first row = headers).
@@ -49,8 +52,19 @@ function normHeader(h) {
 }
 
 /**
- * Map a CSV row (object with various column names) to a transaction-like object
- * for createTransaction. Supports N26-style and generic columns.
+ * Compute a stable id for a row so re-importing the same row is idempotent (skip if already exists).
+ * Uses full timestamp (date + time) when provided so same date but different time = different transaction.
+ */
+function stableIdForRow(dateStr, amount, merchant, timeStr = '') {
+  const timePart = (timeStr && String(timeStr).trim()) || '';
+  const payload = [dateStr, timePart, String(amount), (merchant || '').trim()].join('|');
+  const hash = crypto.createHash('sha256').update(payload).digest('hex').slice(0, 16);
+  return `import-${hash}`;
+}
+
+/**
+ * Map a CSV row to a transaction-like object for createTransaction.
+ * Supports bank feed columns: date, amount, raw_merchant, canonical_merchant, merchant_normalized, description, instrument, source, recurring.
  */
 function rowToTransaction(row) {
   const keys = Object.keys(row);
@@ -67,7 +81,16 @@ function rowToTransaction(row) {
     return '';
   };
 
-  let dateStr = get('date', 'booking date', 'transaction date', 'datum', 'valuta');
+  let rawDate = get('date', 'booking date', 'transaction date', 'datum', 'valuta');
+  let timeStr = '';
+  if (rawDate && /\s+\d{1,2}:\d{2}/.test(rawDate)) {
+    const parts = rawDate.split(/\s+/);
+    timeStr = normalizeTimePart(parts.slice(1).join(' '));
+    rawDate = parts[0];
+  }
+  if (!timeStr) timeStr = normalizeTimePart(get('time', 'booking time', 'transaction time'));
+
+  let dateStr = rawDate;
   if (dateStr && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
     // already ISO-like
   } else if (dateStr && /^\d{2}[./]\d{2}[./]\d{2,4}$/.test(dateStr)) {
@@ -82,7 +105,18 @@ function rowToTransaction(row) {
   }
   if (!dateStr) dateStr = new Date().toISOString().slice(0, 10);
 
-  const merchant = get('partner', 'merchant', 'payee', 'counterparty', 'description', 'reference', 'partner name');
+  const merchant = get(
+    'canonical_merchant',
+    'raw_merchant',
+    'merchant_normalized',
+    'partner',
+    'merchant',
+    'payee',
+    'counterparty',
+    'description',
+    'reference',
+    'partner name'
+  );
   let amountStr = get('amount', 'amount (eur)', 'amount (usd)', 'betrag', 'transaction amount');
   let amount = 0;
   if (amountStr) {
@@ -91,22 +125,44 @@ function rowToTransaction(row) {
     if (!Number.isNaN(num)) amount = num;
   }
 
-  const typeRaw = get('type', 'transaction type', 'art');
-  const type = /recurring|subscription|abbuchung|dauerauftrag/i.test(typeRaw) ? 'recurring' : 'one-time';
+  const typeRaw = get('recurring', 'type', 'transaction type', 'art');
+  const type = /recurring|subscription|abbuchung|dauerauftrag|yes/i.test(typeRaw) ? 'recurring' : 'one-time';
 
-  return {
+  const paymentMethod = get('instrument', 'source', 'payment method', 'account', 'payment_method');
+  const tx = {
     merchant: merchant || 'Unknown',
     date: dateStr,
     amount,
     type,
-    paymentMethod: get('payment method', 'account', 'payment_method') || 'CSV Import',
+    paymentMethod: paymentMethod || 'CSV Import',
     status: 'completed',
     icon: 'receipt_long',
   };
+  tx.id = stableIdForRow(dateStr, amount, tx.merchant, timeStr);
+  return tx;
+}
+
+/** Normalize time to HH:mm or HH:mm:ss for stable id. */
+function normalizeTimePart(t) {
+  if (!t || typeof t !== 'string') return '';
+  const s = t.trim().replace(/\s+/g, ' ');
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    const [, h, min, sec] = m;
+    return sec !== undefined ? `${h.padStart(2, '0')}:${min.padStart(2, '0')}:${sec.padStart(2, '0')}` : `${h.padStart(2, '0')}:${min.padStart(2, '0')}:00`;
+  }
+  try {
+    const d = new Date('1970-01-01 ' + s);
+    if (!Number.isNaN(d.getTime())) {
+      const h = d.getHours(), min = d.getMinutes(), sec = d.getSeconds();
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+  } catch (_) {}
+  return '';
 }
 
 /**
- * Parse CSV text and return an array of transaction-like objects (not yet classified).
+ * Parse CSV text and return an array of transaction-like objects with stable ids.
  * Classifier is run when each is passed to createTransaction.
  */
 function parseCsvToTransactions(csvText) {
@@ -114,4 +170,4 @@ function parseCsvToTransactions(csvText) {
   return rows.map(rowToTransaction).filter((tx) => tx.merchant || tx.amount !== 0);
 }
 
-export { parseCsv, parseCsvLine, rowToTransaction, parseCsvToTransactions };
+export { parseCsv, parseCsvLine, rowToTransaction, parseCsvToTransactions, stableIdForRow };

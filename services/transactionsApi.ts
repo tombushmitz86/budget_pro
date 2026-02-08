@@ -24,7 +24,7 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
     const msg = (data as { error?: string }).error ?? res.statusText ?? String(res.status);
     if (res.status === 404) {
       throw new Error(
-        'API not found (404). Start the backend with: npm run server (in budget_pro). Use npm run dev for the app so /api is proxied to port 3001.'
+        'API not found (404). Start the backend: from budget_pro run `npm run dev:all` (backend + app), or in two terminals run `npm run server` then `npm run dev`. Check backend is up: http://localhost:3001/api/health'
       );
     }
     throw new Error(msg);
@@ -67,10 +67,90 @@ export async function updateTransaction(id: string, tx: Partial<Transaction>): P
       paymentMethod: tx.paymentMethod,
       type: tx.type,
       recurringInterval: tx.recurringInterval,
+      // Classification fields so backend can record merchant override when category changes
+      categoryFingerprint: tx.categoryFingerprint,
+      categorySource: tx.categorySource,
+      categoryConfidence: tx.categoryConfidence,
+      matchedRuleId: tx.matchedRuleId,
     }),
   });
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   return api(`/api/transactions/${id}`, { method: 'DELETE' });
+}
+
+export async function clearAllTransactions(): Promise<{ deleted: number }> {
+  return api<{ deleted: number }>('/api/transactions', { method: 'DELETE' });
+}
+
+export type ImportResult = { created: number; skipped: number; transactions: Transaction[] };
+
+export type ImportDryRunResult = {
+  transactions: Array<{ id?: string; date: string; merchant: string; amount: number }>;
+  wouldCreate: number;
+  wouldSkip: number;
+};
+
+export type ImportCsvOptions = { paymentMethod?: string };
+
+export type ImportXlsxOptions = { paymentMethod?: string; source?: 'bcc' };
+
+export async function importCsvDryRun(csv: string): Promise<ImportDryRunResult> {
+  return api<ImportDryRunResult>('/api/transactions/import/dry-run', {
+    method: 'POST',
+    body: JSON.stringify({ csv }),
+  });
+}
+
+export async function importXlsxDryRun(base64: string, source?: 'bcc'): Promise<ImportDryRunResult> {
+  const body: { data: string; source?: string } = { data: base64 };
+  if (source === 'bcc') body.source = 'bcc';
+  return api<ImportDryRunResult>('/api/transactions/import-xlsx/dry-run', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function importCsv(csv: string, options?: ImportCsvOptions): Promise<ImportResult> {
+  const body: { csv: string; paymentMethod?: string } = { csv };
+  if (options?.paymentMethod != null && options.paymentMethod.trim()) {
+    body.paymentMethod = options.paymentMethod.trim();
+  }
+  return api<ImportResult>('/api/transactions/import', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function importXlsx(base64: string, options?: ImportXlsxOptions): Promise<ImportResult> {
+  const body: { data: string; paymentMethod?: string; source?: string } = { data: base64 };
+  if (options?.paymentMethod != null && options.paymentMethod.trim()) {
+    body.paymentMethod = options.paymentMethod.trim();
+  }
+  if (options?.source === 'bcc') {
+    body.source = 'bcc';
+  }
+  return api<ImportResult>('/api/transactions/import-xlsx', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export type ApplyRulesChange = {
+  id: string;
+  merchant: string;
+  date: string;
+  currentCategory: string;
+  suggestedCategory: string;
+  source: string;
+};
+
+export type ApplyRulesDryRunResult = { changes: ApplyRulesChange[] };
+
+export async function applyRulesDryRun(): Promise<ApplyRulesDryRunResult> {
+  return api<ApplyRulesDryRunResult>('/api/transactions/apply-rules/dry-run', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }

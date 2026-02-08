@@ -16,6 +16,7 @@ const Sidebar = () => {
     { name: 'Plan', icon: 'savings', path: '/plan' },
     { name: 'Goals', icon: 'flag', path: '/goals' },
     { name: 'Transactions', icon: 'receipt_long', path: '/transactions' },
+    { name: 'Merchant rules', icon: 'rule', path: '/merchant-rules' },
     { name: 'Portfolio', icon: 'account_balance', path: '/assets' },
     { name: 'Settings', icon: 'tune', path: '/settings' },
   ];
@@ -81,6 +82,7 @@ const Header = () => {
     'plan': 'Saving Plan',
     'goals': 'Savings Goals',
     'transactions': 'Unified Ledger',
+    'merchant-rules': 'Merchant Rules',
     'assets': 'Wealth Portfolio',
     'settings': 'System Control',
     'add': 'Data Input',

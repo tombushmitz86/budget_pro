@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Currency } from '../types';
+import { getSettings, updateSettings } from '../services/settingsApi';
 
 const STORAGE_KEY = 'budgetpro_currency';
 
@@ -16,10 +17,12 @@ const SYMBOLS: Record<Currency, string> = {
   ILS: '₪',
 };
 
+const VALID_CURRENCY = new Set<string>(['USD', 'EUR', 'ILS']);
+
 function getStoredCurrency(): Currency {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === 'EUR' || raw === 'ILS' || raw === 'USD') return raw;
+    if (raw && VALID_CURRENCY.has(raw)) return raw as Currency;
   } catch (_) {}
   return 'USD';
 }
@@ -38,6 +41,20 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<Currency>(getStoredCurrency);
 
+  // Load preferred currency from DB on mount when backend is available
+  useEffect(() => {
+    getSettings()
+      .then((s) => {
+        if (s.preferred_currency && VALID_CURRENCY.has(s.preferred_currency)) {
+          setCurrencyState(s.preferred_currency as Currency);
+          try {
+            localStorage.setItem(STORAGE_KEY, s.preferred_currency);
+          } catch (_) {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, currency);
@@ -46,6 +63,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrency = useCallback((c: Currency) => {
     setCurrencyState(c);
+    updateSettings({ preferred_currency: c }).catch(() => {});
   }, []);
 
   const convertFromUSD = useCallback(

@@ -5,6 +5,7 @@
 
 import crypto from 'crypto';
 import { getDb } from './db.js';
+import { getCustomCategories } from './categoriesDb.js';
 
 // --- Category enum (must match types.ts Category) ---
 const FALLBACK_CATEGORY = 'UNCATEGORIZED';
@@ -54,6 +55,13 @@ function getMerchantCandidate(tx) {
   return normalizeMerchant(raw);
 }
 
+/** First token of normalized merchant (e.g. "ESSELUNGA XXXX" -> "ESSELUNGA") for stem-based rule matching */
+function getMerchantStem(tx) {
+  const norm = getMerchantCandidate(tx);
+  const first = norm.split(/\s+/).filter(Boolean)[0] || norm;
+  return first.length >= 2 ? first : '';
+}
+
 function computeFingerprint(tx) {
   const merchantCandidate = getMerchantCandidate(tx);
   const mcc = tx.mcc ?? tx.mccCode ?? '';
@@ -70,13 +78,54 @@ function getOverride(fingerprint) {
 }
 
 function upsertOverride(fingerprint, category, exampleMerchant) {
+  if (!fingerprint || !category) return;
   const db = getDb();
   const now = new Date().toISOString();
+  const example = (exampleMerchant ?? '').toString().trim() || 'Unknown';
   db.prepare(
     `INSERT INTO merchant_overrides (fingerprint, category, example_merchant, updated_at)
      VALUES (?, ?, ?, ?)
      ON CONFLICT(fingerprint) DO UPDATE SET category = ?, example_merchant = ?, updated_at = ?`
-  ).run(fingerprint, category, exampleMerchant ?? '', now, category, exampleMerchant ?? '', now);
+  ).run(fingerprint, category, example, now, category, example, now);
+  console.log('[Merchant rules] Saved override:', example, '->', category);
+}
+
+function getOverrideByStem(stem) {
+  if (!stem || stem.length < 2) return null;
+  const db = getDb();
+  const row = db.prepare('SELECT category FROM merchant_override_stems WHERE stem = ?').get(stem);
+  return row ? row.category : null;
+}
+
+function upsertOverrideByStem(stem, category, exampleMerchant) {
+  if (!stem || stem.length < 2 || !category) return;
+  const db = getDb();
+  const now = new Date().toISOString();
+  const example = (exampleMerchant ?? '').toString().trim() || 'Unknown';
+  db.prepare(
+    `INSERT INTO merchant_override_stems (stem, category, example_merchant, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(stem) DO UPDATE SET category = ?, example_merchant = ?, updated_at = ?`
+  ).run(stem, category, example, now, category, example, now);
+}
+
+function listMerchantOverrides() {
+  const db = getDb();
+  return db.prepare(
+    'SELECT fingerprint, category, example_merchant, updated_at FROM merchant_overrides ORDER BY updated_at DESC'
+  ).all();
+}
+
+/** One-time backfill: ensure existing merchant_overrides also have a stem row so e.g. ESSELUNGA YYYY matches rule from ESSELUNGA XXXX */
+function backfillMerchantOverrideStems() {
+  const db = getDb();
+  try {
+    const rows = db.prepare('SELECT category, example_merchant FROM merchant_overrides').all();
+    for (const row of rows) {
+      const stem = getMerchantStem({ merchant: row.example_merchant ?? '' });
+      if (stem) upsertOverrideByStem(stem, row.category, row.example_merchant);
+    }
+  } catch (_) {}
 }
 
 // --- Rules (ordered; first match wins) ---
@@ -206,7 +255,7 @@ const RULES = [
   },
 ];
 
-const VALID_CATEGORIES = new Set([
+const BUILTIN_CATEGORIES = new Set([
   'INCOME_SALARY', 'INCOME_OTHER', 'HOUSING_RENT_MORTGAGE', 'UTILITIES', 'GROCERIES', 'DINING',
   'TRANSPORT_FUEL', 'TRANSPORT_PUBLIC', 'PARKING', 'SHOPPING', 'SUBSCRIPTIONS', 'HEALTH', 'EDUCATION',
   'CHILDCARE', 'ENTERTAINMENT', 'TRAVEL', 'INSURANCE', 'TAXES_FEES', 'CASH_WITHDRAWAL',
@@ -214,7 +263,11 @@ const VALID_CATEGORIES = new Set([
 ]);
 
 function ensureValidCategory(cat) {
-  return VALID_CATEGORIES.has(cat) ? cat : FALLBACK_CATEGORY;
+  if (!cat) return FALLBACK_CATEGORY;
+  if (BUILTIN_CATEGORIES.has(cat)) return cat;
+  const custom = getCustomCategories();
+  if (custom.includes(cat)) return cat;
+  return FALLBACK_CATEGORY;
 }
 
 /**
@@ -234,6 +287,18 @@ function classify(tx) {
       source: 'OVERRIDE',
       fingerprint: fp,
       matchedSignals: ['merchant_override'],
+    };
+  }
+
+  const stem = getMerchantStem(tx);
+  const overrideByStem = stem ? getOverrideByStem(stem) : null;
+  if (overrideByStem != null) {
+    return {
+      category: ensureValidCategory(overrideByStem),
+      confidence: 1.0,
+      source: 'OVERRIDE',
+      fingerprint: fp,
+      matchedSignals: ['merchant_override_stem'],
     };
   }
 
@@ -283,9 +348,15 @@ function applyClassification(tx) {
 function recordUserCategory(tx, chosenCategory) {
   const category = ensureValidCategory(chosenCategory);
   if (!tx) return;
-  const fingerprint = tx.categoryFingerprint || computeFingerprint(tx);
-  const exampleMerchant = getMerchantCandidate(tx);
+  // Always compute fingerprint if missing or empty so we never skip saving
+  let fingerprint = tx.categoryFingerprint && String(tx.categoryFingerprint).trim();
+  if (!fingerprint) {
+    fingerprint = computeFingerprint(tx);
+  }
+  const exampleMerchant = getMerchantCandidate(tx) || (tx.merchant && String(tx.merchant).trim()) || 'Unknown';
   upsertOverride(fingerprint, category, exampleMerchant);
+  const stem = getMerchantStem(tx);
+  if (stem) upsertOverrideByStem(stem, category, exampleMerchant);
   tx.category = category;
   tx.categorySource = 'OVERRIDE';
   tx.categoryConfidence = 1.0;
@@ -297,11 +368,14 @@ export {
   normalizeMerchant,
   tokenize,
   computeFingerprint,
+  getMerchantStem,
   getOverride,
   upsertOverride,
+  listMerchantOverrides,
+  backfillMerchantOverrideStems,
   classify,
   applyClassification,
   recordUserCategory,
   FALLBACK_CATEGORY,
-  VALID_CATEGORIES,
+  BUILTIN_CATEGORIES as VALID_CATEGORIES,
 };

@@ -5,6 +5,7 @@ import { AppSnapshot, PaymentMethod, Currency } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
 import { useN26Connection } from '../context/N26ConnectionContext';
 import { useDataSource } from '../context/DataSourceContext';
+import { clearAllTransactions } from '../services/transactionsApi';
 
 export const Settings = () => {
   const { currency, setCurrency } = useCurrency();
@@ -25,6 +26,8 @@ export const Settings = () => {
   const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({ type: 'bank', icon: 'account_balance' });
   const [importText, setImportText] = useState('');
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
+  const [clearLoading, setClearLoading] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
   const handleDump = () => {
     const snapshot: AppSnapshot = {
@@ -178,6 +181,45 @@ export const Settings = () => {
               Database is empty until transactions are loaded or created. Use the Transactions page to add entries.
             </p>
           )}
+          {dataSourceMode === 'real' && (
+            <div className="pt-4 mt-4 border-t border-white/5">
+              <p className="text-[#9db9a6] text-xs leading-relaxed mb-3">Remove every transaction from the database. This cannot be undone.</p>
+              {clearError && (
+                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest mb-2">{clearError}</p>
+              )}
+              <button
+                type="button"
+                disabled={clearLoading}
+                onClick={async () => {
+                  if (!window.confirm('Clear all transactions from the database? This cannot be undone.')) return;
+                  setClearError(null);
+                  setClearLoading(true);
+                  try {
+                    const { deleted } = await clearAllTransactions();
+                    setShowSuccess(`Cleared ${deleted} transaction${deleted !== 1 ? 's' : ''} from the database.`);
+                    setTimeout(() => setShowSuccess(null), 4000);
+                  } catch (err) {
+                    setClearError(err instanceof Error ? err.message : 'Failed to clear. Is the server running?');
+                  } finally {
+                    setClearLoading(false);
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-black uppercase tracking-widest hover:bg-red-500/30 hover:text-red-300 transition-all disabled:opacity-50"
+              >
+                {clearLoading ? (
+                  <>
+                    <div className="size-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                    Clearing…
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-lg">delete_forever</span>
+                    Clear all transactions
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -272,7 +314,7 @@ export const Settings = () => {
           <h2 className="text-white text-xl font-black uppercase tracking-widest italic">Display Currency</h2>
         </div>
         <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-4">
-          <p className="text-[#9db9a6] text-xs leading-relaxed">All amounts (transactions, assets, budgets, plan) are stored in USD and shown in your selected currency.</p>
+          <p className="text-[#9db9a6] text-xs leading-relaxed">All amounts (transactions, assets, budgets, plan) are stored in USD and shown in your selected currency. Your choice is saved in the database (user settings) and used across the app.</p>
           <div className="flex flex-wrap gap-3">
             {(['USD', 'EUR', 'ILS'] as Currency[]).map((c) => (
               <button

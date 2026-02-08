@@ -51,6 +51,27 @@ CREATE TABLE IF NOT EXISTS merchant_overrides (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_merchant_overrides_updated ON merchant_overrides(updated_at);
+
+-- Merchant override by stem (first word of normalized name), so "ESSELUNGA XXXX" and "ESSELUNGA YYYY" both match
+CREATE TABLE IF NOT EXISTS merchant_override_stems (
+  stem TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  example_merchant TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- User settings (key-value). preferred_currency, etc.
+CREATE TABLE IF NOT EXISTS user_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Custom categories (user-created, in addition to built-in enum)
+CREATE TABLE IF NOT EXISTS custom_categories (
+  name TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 export function initDb() {
