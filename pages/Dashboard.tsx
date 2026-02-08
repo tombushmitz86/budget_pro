@@ -13,6 +13,102 @@ import type { Transaction } from '../types';
 const EMPTY_PIE = [{ name: '—', value: 100, color: '#28392e' }];
 const EMPTY_TRENDS = [{ name: '—', value: 0 }];
 
+/** Variable categories: baseline = median of last 6–9 normal months (exclude vacations/anomalies). */
+const VARIABLE_CATEGORIES = ['GROCERIES', 'SHOPPING', 'DINING', 'CHILDCARE', 'TRANSPORT_FUEL', 'TRANSPORT_PUBLIC', 'PARKING', 'ENTERTAINMENT'] as const;
+const TRAVEL_CATEGORY = 'TRAVEL';
+const MAX_MONTHS_NORMAL = 9;
+const MIN_MONTHS_NORMAL = 6;
+
+function toYearMonth(dateStr: string): string | null {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (/^\d{4}-\d{2}/.test(s)) return s.slice(0, 7);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+function computeNormalMonth(transactions: { date: string; amount: number; category?: string; type?: string }[]): {
+  normalMonthTotal: number;
+  fixedTotal: number;
+  variableTotal: number;
+  byCategory: Record<string, number>;
+  monthsUsed: number;
+} {
+  const expenses = transactions.filter(t => t.amount < 0);
+
+  // Fixed = sum of all recurring (same as Plan "Original fixed spend") – each recurring tx counted once
+  const fixedTotal = Math.round(
+    expenses.filter(t => t.type === 'recurring').reduce((s, t) => s + Math.abs(t.amount), 0) * 100
+  ) / 100;
+
+  const byMonth = new Map<string, { variable: Record<string, number>; variableSum: number; travel: number }>();
+
+  for (const t of expenses) {
+    const ym = toYearMonth(t.date);
+    if (!ym) continue;
+    if (!byMonth.has(ym)) {
+      byMonth.set(ym, { variable: {}, variableSum: 0, travel: 0 });
+    }
+    const row = byMonth.get(ym)!;
+    const abs = Math.abs(t.amount);
+    if (VARIABLE_CATEGORIES.includes(t.category as typeof VARIABLE_CATEGORIES[number])) {
+      row.variable[t.category!] = (row.variable[t.category!] ?? 0) + abs;
+      row.variableSum += abs;
+    } else if (t.category === TRAVEL_CATEGORY) {
+      row.travel += abs;
+    }
+  }
+
+  const months = [...byMonth.keys()].sort().slice(-MAX_MONTHS_NORMAL);
+  if (months.length < 2) {
+    const single = months[0] ? byMonth.get(months[0])! : { variable: {} as Record<string, number>, variableSum: 0, travel: 0 };
+    const varTotal = Math.round((single.variableSum ?? 0) * 100) / 100;
+    const byCategory: Record<string, number> = {};
+    for (const cat of VARIABLE_CATEGORIES) {
+      byCategory[cat] = Math.round((single.variable[cat] ?? 0) * 100) / 100;
+    }
+    return { normalMonthTotal: fixedTotal + varTotal, fixedTotal, variableTotal: varTotal, byCategory, monthsUsed: months.length || 0 };
+  }
+
+  const travelValues = months.map(m => byMonth.get(m)!.travel);
+  const travelMed = median(travelValues);
+  const variableSums = months.map(m => byMonth.get(m)!.variableSum);
+  const variableMed = median(variableSums);
+
+  let normalMonths = months.filter(m => {
+    const row = byMonth.get(m)!;
+    const vacation = travelMed > 0 && row.travel > 2 * travelMed;
+    const spike = variableMed > 0 && row.variableSum > 2 * variableMed;
+    return !vacation && !spike;
+  });
+  if (normalMonths.length < 2) normalMonths = months.slice(-Math.max(MIN_MONTHS_NORMAL, months.length));
+
+  const byCategory: Record<string, number> = {};
+  for (const cat of VARIABLE_CATEGORIES) {
+    const values = normalMonths.map(m => (byMonth.get(m)!.variable[cat] ?? 0));
+    byCategory[cat] = values.length > 0 ? Math.round(median(values) * 100) / 100 : 0;
+  }
+  const variableTotal = Object.values(byCategory).reduce((s, v) => s + v, 0);
+
+  return {
+    normalMonthTotal: Math.round((fixedTotal + variableTotal) * 100) / 100,
+    fixedTotal: Math.round(fixedTotal * 100) / 100,
+    variableTotal: Math.round(variableTotal * 100) / 100,
+    byCategory,
+    monthsUsed: normalMonths.length,
+  };
+}
+
 export const Dashboard = () => {
   const { formatMoney } = useCurrency();
   const { primaryGoal } = useGoals();
@@ -72,6 +168,11 @@ export const Dashboard = () => {
     return Math.round((total / months) * 100) / 100;
   }, [isReal, sourceTransactions, transactions.length]);
 
+  const normalMonth = useMemo(() => {
+    if (isReal && transactions.length === 0) return null;
+    return computeNormalMonth(sourceTransactions);
+  }, [isReal, sourceTransactions, transactions.length]);
+
   const categoryBreakdown = isReal && transactions.length === 0 ? EMPTY_PIE : CATEGORY_BREAKDOWN;
   const spendingTrends = isReal && transactions.length === 0 ? EMPTY_TRENDS : SPENDING_TRENDS;
   const recentTransactions = sourceTransactions.slice(0, 5);
@@ -89,6 +190,46 @@ export const Dashboard = () => {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* This Month vs Normal Month – reference baseline (top of dashboard) */}
+      <div className="glass-card rounded-2xl p-6 md:p-8 border border-white/10">
+        <h3 className="text-white text-sm font-black uppercase tracking-widest mb-4">This month vs normal month</h3>
+        <p className="text-[#9db9a6] text-xs font-medium mb-6">Normal month = expected burn (fixed recurring + median variable spend over last 6–9 months, excluding vacations & anomalies). Reference only, not a goal.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mb-1">This month</p>
+            <p className="text-white text-2xl md:text-3xl font-black tracking-tight">{formatMoney(currentMonthSpending)}</p>
+            <p className="text-[#9db9a6] text-xs mt-1">Spending in {currentYearMonth}</p>
+          </div>
+          <div>
+            <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mb-1">Normal month (expected)</p>
+            <p className="text-white text-2xl md:text-3xl font-black tracking-tight">
+              {normalMonth ? formatMoney(normalMonth.normalMonthTotal) : '—'}
+            </p>
+            <p className="text-[#9db9a6] text-xs mt-1">
+              {normalMonth ? `Fixed ${formatMoney(normalMonth.fixedTotal)} + variable ${formatMoney(normalMonth.variableTotal)} · ${normalMonth.monthsUsed} months` : 'Need more data'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mb-1">Difference</p>
+            {normalMonth && normalMonth.normalMonthTotal > 0 ? (
+              <>
+                <p className={`text-2xl md:text-3xl font-black tracking-tight ${currentMonthSpending <= normalMonth.normalMonthTotal ? 'text-primary' : 'text-amber-400'}`}>
+                  {currentMonthSpending <= normalMonth.normalMonthTotal
+                    ? formatMoney(normalMonth.normalMonthTotal - currentMonthSpending) + ' under'
+                    : formatMoney(currentMonthSpending - normalMonth.normalMonthTotal) + ' over'}
+                </p>
+                <p className="text-[#9db9a6] text-xs mt-1">vs expected burn</p>
+              </>
+            ) : (
+              <>
+                <p className="text-white text-2xl font-black">—</p>
+                <p className="text-[#9db9a6] text-xs mt-1">Add 6+ months of data</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl relative overflow-hidden group">
