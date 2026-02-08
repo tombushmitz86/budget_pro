@@ -1,0 +1,343 @@
+{
+  "source": "snapshot.json",
+  "extractedAt": "2026-02-08T19:37:02.875Z",
+  "count": 42,
+  "fixedExpenses": [
+    {
+      "merchant": "Panda Insurence (Allianz)",
+      "amount": -526.62,
+      "categoryId": "cmk2js0sy000q22ms38kjt8sh",
+      "categoryName": "Auto",
+      "date": "2025-09-30T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Toyota Insurence 2",
+      "amount": -38.25,
+      "categoryId": "cmk2js0sy000q22ms38kjt8sh",
+      "categoryName": "Auto",
+      "date": "2025-10-31T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Toyota Insurence 1",
+      "amount": -63.36,
+      "categoryId": "cmk2js0sy000q22ms38kjt8sh",
+      "categoryName": "Auto",
+      "date": "2025-11-03T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Telepass",
+      "amount": -4,
+      "categoryId": "cmk2js0sr000822mszuydfyo4",
+      "categoryName": "Transportation",
+      "date": "2025-11-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Adobe",
+      "amount": -9.33,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-11-21T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Botti",
+      "amount": -340,
+      "categoryId": "cmk2eujvh000113km344bkv3p",
+      "categoryName": "Kindengarden",
+      "date": "2025-11-30T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Google YouTubePremium",
+      "amount": -13.99,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-14T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Starlink",
+      "amount": -40,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-17T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Apple",
+      "amount": -9.99,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-17T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Cursor",
+      "amount": -17.02,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-23T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Spotify",
+      "amount": -11.99,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-24T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Amazon Prime",
+      "amount": -4.99,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2025-12-28T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "contact lenses for Tom",
+      "amount": -40,
+      "categoryId": "cmk2js0su000g22msr1007285",
+      "categoryName": "Health",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Studio Rental Tom",
+      "amount": -250,
+      "categoryId": "cmk2n181i00xb22msux1ykm2z",
+      "categoryName": "Studio Rental",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Dentist  (Both)",
+      "amount": -35,
+      "categoryId": "cmk2js0su000g22msr1007285",
+      "categoryName": "Health",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Italian lessons Tom",
+      "amount": -100,
+      "categoryId": "cmk2evxek000313kmb3ktjyi9",
+      "categoryName": "Education",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Capture one",
+      "amount": -190,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "ultra cc",
+      "amount": -9,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "OpenAI",
+      "amount": -20,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Italian Lessons Hadas",
+      "amount": -50,
+      "categoryId": "cmk2evxek000313kmb3ktjyi9",
+      "categoryName": "Education",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "House Insurence",
+      "amount": -600,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Yoga Lessons Hadas",
+      "amount": -80,
+      "categoryId": "cmk2js0su000g22msr1007285",
+      "categoryName": "Health",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Accountant Hadas",
+      "amount": -2500,
+      "categoryId": "cmk31pw1q00de147efhqqonnp",
+      "categoryName": "Accounting",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Accountant Tom",
+      "amount": -2500,
+      "categoryId": "cmk31pw1q00de147efhqqonnp",
+      "categoryName": "Accounting",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Therapy Tom",
+      "amount": -400,
+      "categoryId": "cmk2js0su000g22msr1007285",
+      "categoryName": "Health",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "house cleaning",
+      "amount": -200,
+      "categoryId": "cmk2js0sx000m22msshjg14wp",
+      "categoryName": "Home",
+      "date": "2026-01-06T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "mortgage",
+      "amount": -100.03,
+      "categoryId": "cmk49st5g00ft147e2aa4wv3c",
+      "categoryName": "Investments",
+      "date": "2026-01-07T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "health insurance in Israel tom (Menora)",
+      "amount": -50,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-07T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Phones in Israel",
+      "amount": -16.98,
+      "categoryId": "cmk30erra005f147e3fnkq6bu",
+      "categoryName": "phone",
+      "date": "2026-01-07T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "life insurance for apartment mortage Tom",
+      "amount": -9.98,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-07T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "apartment insurance Israel Tom",
+      "amount": -14.99,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-07T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "GoDaddy domain Tom",
+      "amount": -20,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Tom website",
+      "amount": -164,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Keren Ishtalmut Hadas",
+      "amount": -400,
+      "categoryId": "cmk49st5g00ft147e2aa4wv3c",
+      "categoryName": "Investments",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Property management israel",
+      "amount": -60,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Total Israel Insurence for Hadas",
+      "amount": -100,
+      "categoryId": "cmk2js0st000e22msdad2met7",
+      "categoryName": "Insurance",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Tim Phones",
+      "amount": -30,
+      "categoryId": "cmk30erra005f147e3fnkq6bu",
+      "categoryName": "phone",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Mortage Hadas",
+      "amount": -170,
+      "categoryId": "cmk49st5g00ft147e2aa4wv3c",
+      "categoryName": "Investments",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Yaris Bollo",
+      "amount": -180,
+      "categoryId": "cmk2js0sy000q22ms38kjt8sh",
+      "categoryName": "Auto",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Volvo bollo",
+      "amount": -500,
+      "categoryId": "cmk2js0sy000q22ms38kjt8sh",
+      "categoryName": "Auto",
+      "date": "2026-01-08T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Loan from Italian Bank",
+      "amount": -1100,
+      "categoryId": "cmk8qr0yj0001lvwmu0xzjn7u",
+      "categoryName": "Loans",
+      "date": "2026-01-10T00:00:00.000Z",
+      "currency": "EUR"
+    },
+    {
+      "merchant": "Cursor",
+      "amount": -20,
+      "categoryId": "cmk2js0so000422msgeosyvio",
+      "categoryName": "Digital",
+      "date": "2026-10-22T23:00:00.000Z",
+      "currency": "EUR"
+    }
+  ]
+}

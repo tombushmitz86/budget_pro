@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { FIXED_MONTHLY_EXPENSES } from '../constants';
-import type { Category } from '../types';
+import type { Category, Currency } from '../types';
 import { CATEGORY_DISPLAY_LABELS } from '../constants';
 import { useCurrency } from '../context/CurrencyContext';
 import { useDataSource } from '../context/DataSourceContext';
@@ -15,6 +15,7 @@ interface FixedItem {
   category: Category;
   amount: number;
   icon: string;
+  currency?: Currency;
 }
 
 interface PlanItem extends FixedItem {
@@ -22,8 +23,8 @@ interface PlanItem extends FixedItem {
   reducedAmount?: number;
 }
 
-function toPlanItems(expenses: { id: string; merchant: string; category: Category; amount: number; icon: string }[]): PlanItem[] {
-  return expenses.map((item) => ({ ...item, status: 'active' as PlanStatus }));
+function toPlanItems(expenses: { id: string; merchant: string; category: Category; amount: number; icon: string; currency?: Currency }[]): PlanItem[] {
+  return expenses.map((item) => ({ ...item, currency: item.currency ?? 'EUR', status: 'active' as PlanStatus }));
 }
 
 /**
@@ -38,6 +39,7 @@ export const Plan = () => {
     toPlanItems(FIXED_MONTHLY_EXPENSES)
   );
   const [loading, setLoading] = useState(isReal);
+  const [fixedSortBy, setFixedSortBy] = useState<'name' | 'amount'>('amount');
 
   useEffect(() => {
     if (isReal) {
@@ -51,6 +53,7 @@ export const Plan = () => {
             category: t.category,
             amount: t.amount,
             icon: t.icon,
+            currency: t.currency ?? 'EUR',
           }));
           setItems(toPlanItems(asFixed));
         })
@@ -60,6 +63,16 @@ export const Plan = () => {
       setItems(toPlanItems(FIXED_MONTHLY_EXPENSES));
     }
   }, [isReal]);
+
+  const sortedItems = useMemo(() => {
+    const list = [...items];
+    if (fixedSortBy === 'name') {
+      list.sort((a, b) => a.merchant.localeCompare(b.merchant, undefined, { sensitivity: 'base' }));
+    } else {
+      list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    }
+    return list;
+  }, [items, fixedSortBy]);
 
   const { originalTotal, projectedMonthly, totalSaved } = useMemo(() => {
     let projected = 0;
@@ -108,17 +121,17 @@ export const Plan = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-card rounded-2xl p-6 border border-border-dark flex flex-col gap-2">
           <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Original fixed spend</p>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(originalTotal)}</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(originalTotal, 'EUR')}</p>
           <p className="text-[#9db9a6] text-xs font-medium">Before any changes</p>
         </div>
         <div className="glass-card rounded-2xl p-6 border border-border-dark flex flex-col gap-2">
           <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total monthly spendings</p>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(projectedMonthly)}</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(projectedMonthly, 'EUR')}</p>
           <p className="text-[#9db9a6] text-xs font-medium">After your plan (eliminations & reductions)</p>
         </div>
         <div className="glass-card rounded-2xl p-6 border border-primary/20 flex flex-col gap-2">
           <p className="text-primary text-[10px] font-black uppercase tracking-widest">Total money saved</p>
-          <p className="text-primary text-3xl font-black leading-tight tracking-tighter">{formatMoney(totalSaved)}</p>
+          <p className="text-primary text-3xl font-black leading-tight tracking-tighter">{formatMoney(totalSaved, 'EUR')}</p>
           <p className="text-[#9db9a6] text-xs font-medium">From eliminated or reduced fixed expenses</p>
         </div>
       </div>
@@ -126,8 +139,30 @@ export const Plan = () => {
       {/* 3. List of fixed transactions – eliminate or reduce */}
       <div className="glass-card rounded-2xl border border-border-dark overflow-hidden">
         <div className="p-6 border-b border-border-dark">
-          <h3 className="text-white text-lg font-black uppercase tracking-tight">Fixed monthly expenses</h3>
-          <p className="text-[#9db9a6] text-sm mt-1">Eliminate or reduce amounts to build your saving plan. Changes are for this session only; to edit or remove real transactions, use the Transactions page.</p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-white text-lg font-black uppercase tracking-tight">Fixed monthly expenses</h3>
+              <p className="text-[#9db9a6] text-sm mt-1">Eliminate or reduce amounts to build your saving plan. Changes are for this session only; to edit or remove real transactions, use the Transactions page.</p>
+            </div>
+            {items.length > 0 && (
+              <div className="flex bg-black/30 p-1 rounded-xl border border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setFixedSortBy('name')}
+                  className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${fixedSortBy === 'name' ? 'bg-primary text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Name
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFixedSortBy('amount')}
+                  className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${fixedSortBy === 'amount' ? 'bg-primary text-background-dark' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Amount
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="divide-y divide-border-dark">
           {items.length === 0 ? (
@@ -141,7 +176,7 @@ export const Plan = () => {
               </p>
             </div>
           ) : (
-            items.map((item) => (
+            sortedItems.map((item) => (
               <FixedRow
                 key={item.id}
                 item={item}
@@ -160,7 +195,7 @@ export const Plan = () => {
 
 interface FixedRowProps {
   item: PlanItem;
-  formatMoney: (amountUsd: number) => string;
+  formatMoney: (amount: number, amountCurrency?: Currency) => string;
   onEliminate: () => void;
   onReduce: (newAmount: number) => void;
   onRestore: () => void;
@@ -205,7 +240,7 @@ const FixedRow: React.FC<FixedRowProps> = ({ item, formatMoney, onEliminate, onR
       <div className="flex items-center gap-3">
         {item.status === 'eliminated' ? (
           <>
-            <span className="text-gray-500 text-sm line-through">{formatMoney(item.amount)}</span>
+            <span className="text-gray-500 text-sm line-through">{formatMoney(item.amount, item.currency ?? 'EUR')}</span>
             <span className="text-primary text-xs font-bold uppercase">Eliminated</span>
             <button
               type="button"
@@ -243,12 +278,12 @@ const FixedRow: React.FC<FixedRowProps> = ({ item, formatMoney, onEliminate, onR
         ) : (
           <>
             {item.status === 'reduced' && item.reducedAmount != null ? (
-              <span className="text-white font-bold">{formatMoney(item.reducedAmount)}</span>
+              <span className="text-white font-bold">{formatMoney(item.reducedAmount!, item.currency ?? 'EUR')}</span>
             ) : (
-              <span className="text-white font-bold">{formatMoney(item.amount)}</span>
+              <span className="text-white font-bold">{formatMoney(item.amount, item.currency ?? 'EUR')}</span>
             )}
             {item.status === 'reduced' && (
-              <span className="text-[#9db9a6] text-xs line-through">{formatMoney(item.amount)}</span>
+              <span className="text-[#9db9a6] text-xs line-through">{formatMoney(item.amount, item.currency ?? 'EUR')}</span>
             )}
             <button
               type="button"

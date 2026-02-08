@@ -85,10 +85,14 @@ export function initDb() {
     'ALTER TABLE transactions ADD COLUMN category_confidence REAL',
     'ALTER TABLE transactions ADD COLUMN category_fingerprint TEXT',
     'ALTER TABLE transactions ADD COLUMN matched_rule_id TEXT',
+    "ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT 'EUR'",
   ];
   alterTx.forEach((sql) => {
     try { db.exec(sql); } catch (_) {}
   });
+  try {
+    db.exec("UPDATE transactions SET currency = 'EUR' WHERE currency IS NULL");
+  } catch (_) {}
   return db;
 }
 

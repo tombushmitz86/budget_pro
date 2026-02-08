@@ -30,10 +30,10 @@ function getStoredCurrency(): Currency {
 interface CurrencyContextValue {
   currency: Currency;
   setCurrency: (c: Currency) => void;
-  /** Convert amount stored in USD to display value in selected currency */
-  convertFromUSD: (amountUsd: number) => number;
-  /** Format amount (stored in USD) in selected currency with symbol */
-  formatMoney: (amountUsd: number) => string;
+  /** Convert amount from one currency to display currency (amount is in amountCurrency) */
+  convertToDisplay: (amount: number, amountCurrency: Currency) => number;
+  /** Format amount in display currency. Amount is in amountCurrency (default EUR). Use decimals 0 for whole numbers (round display). */
+  formatMoney: (amount: number, amountCurrency?: Currency, decimals?: number) => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
@@ -66,26 +66,34 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     updateSettings({ preferred_currency: c }).catch(() => {});
   }, []);
 
-  const convertFromUSD = useCallback(
-    (amountUsd: number) => amountUsd * RATES_FROM_USD[currency],
+  /** Amount is in amountCurrency; returns value in display currency. Uses USD as pivot: amount/rateFromUsd[amountCurrency]*rateFromUsd[display]. */
+  const convertToDisplay = useCallback(
+    (amount: number, amountCurrency: Currency) => {
+      const inUsd = amount / RATES_FROM_USD[amountCurrency];
+      return inUsd * RATES_FROM_USD[currency];
+    },
     [currency]
   );
 
+  /** Format amount. Amount is in amountCurrency (default EUR). Converts to display currency and formats. Use decimals 0 for round (whole) display. */
   const formatMoney = useCallback(
-    (amountUsd: number) => {
-      const value = convertFromUSD(amountUsd);
+    (amount: number, amountCurrency: Currency = 'EUR', decimals: number = 2) => {
+      const value = convertToDisplay(amount, amountCurrency);
       const abs = Math.abs(value);
-      const formatted = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const rounded = decimals === 0 ? Math.round(abs) : abs;
+      const formatted = decimals === 0
+        ? rounded.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : rounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const prefix = value < 0 ? '-' : '';
       return `${prefix}${SYMBOLS[currency]}${formatted}`;
     },
-    [currency, convertFromUSD]
+    [currency, convertToDisplay]
   );
 
   const value: CurrencyContextValue = {
     currency,
     setCurrency,
-    convertFromUSD,
+    convertToDisplay,
     formatMoney,
   };
 

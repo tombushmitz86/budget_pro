@@ -1,13 +1,14 @@
 
 /** When type is 'recurring', interval of the recurrence. Amount is always stored as monthly value for aggregations. */
-export type RecurringInterval = 'monthly' | 'yearly';
+export type RecurringInterval = 'monthly' | 'yearly' | string;
+/** For "every X months", recurringInterval is the string '2'..'12'. Use isEveryNMonths() and getEveryNMonths() to handle. */
 
 export interface Transaction {
   id: string;
   date: string;
   merchant: string;
   category: Category;
-  /** Always stored as monthly value (yearly amount / 12 when recurringInterval is 'yearly'). */
+  /** Always stored as monthly value (yearly/12 when 'yearly'; amountEveryXMonths/X when 'every X months'). Stored in transaction currency (default EUR). */
   amount: number;
   status: 'completed' | 'pending' | 'flagged';
   icon: string;
@@ -15,6 +16,8 @@ export interface Transaction {
   type: 'one-time' | 'recurring';
   /** Set when type === 'recurring'; default 'monthly'. */
   recurringInterval?: RecurringInterval;
+  /** Currency of amount (default EUR). */
+  currency?: Currency;
   /** Classification metadata (optional, for debugging/UI). */
   categorySource?: 'OVERRIDE' | 'RULE' | 'FALLBACK';
   categoryConfidence?: number;

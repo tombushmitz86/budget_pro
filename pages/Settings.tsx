@@ -314,7 +314,7 @@ export const Settings = () => {
           <h2 className="text-white text-xl font-black uppercase tracking-widest italic">Display Currency</h2>
         </div>
         <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-4">
-          <p className="text-[#9db9a6] text-xs leading-relaxed">All amounts (transactions, assets, budgets, plan) are stored in USD and shown in your selected currency. Your choice is saved in the database (user settings) and used across the app.</p>
+          <p className="text-[#9db9a6] text-xs leading-relaxed">Transaction amounts are stored in EUR (each transaction has a currency field). Amounts are shown in your selected display currency. Your choice is saved in the database (user settings) and used across the app.</p>
           <div className="flex flex-wrap gap-3">
             {(['USD', 'EUR', 'ILS'] as Currency[]).map((c) => (
               <button

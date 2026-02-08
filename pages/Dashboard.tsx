@@ -51,6 +51,13 @@ function computeNormalMonth(transactions: { date: string; amount: number; catego
     expenses.filter(t => t.type === 'recurring').reduce((s, t) => s + Math.abs(t.amount), 0) * 100
   ) / 100;
 
+  // Recurring (fixed) amount per category – so "Childcare" etc. show their recurring amount in the baseline
+  const fixedByCategory: Record<string, number> = {};
+  expenses.filter(t => t.type === 'recurring').forEach(t => {
+    const cat = t.category || 'UNCATEGORIZED';
+    fixedByCategory[cat] = (fixedByCategory[cat] ?? 0) + Math.abs(t.amount);
+  });
+
   const byMonth = new Map<string, { variable: Record<string, number>; variableSum: number; travel: number }>();
 
   for (const t of expenses) {
@@ -72,10 +79,13 @@ function computeNormalMonth(transactions: { date: string; amount: number; catego
   const months = [...byMonth.keys()].sort().slice(-MAX_MONTHS_NORMAL);
   if (months.length < 2) {
     const single = months[0] ? byMonth.get(months[0])! : { variable: {} as Record<string, number>, variableSum: 0, travel: 0 };
-    const varTotal = Math.round((single.variableSum ?? 0) * 100) / 100;
     const byCategory: Record<string, number> = {};
+    let varTotal = 0;
     for (const cat of VARIABLE_CATEGORIES) {
-      byCategory[cat] = Math.round((single.variable[cat] ?? 0) * 100) / 100;
+      const variablePart = Math.round((single.variable[cat] ?? 0) * 100) / 100;
+      const fixedPart = Math.round((fixedByCategory[cat] ?? 0) * 100) / 100;
+      byCategory[cat] = variablePart + fixedPart;
+      varTotal += variablePart;
     }
     return { normalMonthTotal: fixedTotal + varTotal, fixedTotal, variableTotal: varTotal, byCategory, monthsUsed: months.length || 0 };
   }
@@ -94,11 +104,14 @@ function computeNormalMonth(transactions: { date: string; amount: number; catego
   if (normalMonths.length < 2) normalMonths = months.slice(-Math.max(MIN_MONTHS_NORMAL, months.length));
 
   const byCategory: Record<string, number> = {};
+  let variableTotal = 0;
   for (const cat of VARIABLE_CATEGORIES) {
     const values = normalMonths.map(m => (byMonth.get(m)!.variable[cat] ?? 0));
-    byCategory[cat] = values.length > 0 ? Math.round(median(values) * 100) / 100 : 0;
+    const variableMedian = values.length > 0 ? Math.round(median(values) * 100) / 100 : 0;
+    const fixedPart = Math.round((fixedByCategory[cat] ?? 0) * 100) / 100;
+    byCategory[cat] = variableMedian + fixedPart;
+    variableTotal += variableMedian;
   }
-  const variableTotal = Object.values(byCategory).reduce((s, v) => s + v, 0);
 
   return {
     normalMonthTotal: Math.round((fixedTotal + variableTotal) * 100) / 100,
@@ -108,6 +121,7 @@ function computeNormalMonth(transactions: { date: string; amount: number; catego
     monthsUsed: normalMonths.length,
   };
 }
+
 
 export const Dashboard = () => {
   const { formatMoney } = useCurrency();
@@ -150,8 +164,10 @@ export const Dashboard = () => {
 
   const currentMonthSpending = useMemo(() => {
     if (isReal && transactions.length === 0) return 0;
-    const expenses = sourceTransactions.filter(t => t.amount < 0 && (t.date || '').startsWith(currentYearMonth));
-    return Math.abs(expenses.reduce((s, t) => s + t.amount, 0));
+    const oneTimeInMonth = sourceTransactions.filter(t => t.amount < 0 && t.type !== 'recurring' && (t.date || '').startsWith(currentYearMonth));
+    const recurringTotal = sourceTransactions.filter(t => t.type === 'recurring' && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const oneTimeSum = Math.abs(oneTimeInMonth.reduce((s, t) => s + t.amount, 0));
+    return Math.round((oneTimeSum + recurringTotal) * 100) / 100;
   }, [isReal, sourceTransactions, transactions.length, currentYearMonth]);
 
   const averageMonthlySpending = useMemo(() => {
@@ -172,6 +188,44 @@ export const Dashboard = () => {
     if (isReal && transactions.length === 0) return null;
     return computeNormalMonth(sourceTransactions);
   }, [isReal, sourceTransactions, transactions.length]);
+
+  const currentMonthByCategory = useMemo(() => {
+    const out: Record<string, number> = {};
+    sourceTransactions
+      .filter(t => t.amount < 0 && (t.type !== 'recurring' ? (t.date || '').startsWith(currentYearMonth) : true))
+      .forEach(t => {
+        const cat = t.category || 'UNCATEGORIZED';
+        out[cat] = (out[cat] ?? 0) + Math.abs(t.amount);
+      });
+    return out;
+  }, [sourceTransactions, currentYearMonth]);
+
+  const trendByCategory = useMemo(() => {
+    const expenses = sourceTransactions.filter(t => t.amount < 0 && t.type !== 'recurring');
+    const byMonth = new Map<string, Record<string, number>>();
+    expenses.forEach(t => {
+      const ym = toYearMonth(t.date);
+      if (!ym) return;
+      if (!byMonth.has(ym)) byMonth.set(ym, {});
+      const row = byMonth.get(ym)!;
+      const cat = t.category || 'UNCATEGORIZED';
+      row[cat] = (row[cat] ?? 0) + Math.abs(t.amount);
+    });
+    const months = [...byMonth.keys()].sort().slice(-6);
+    const out: Record<string, { pctChange: number; recentAvg: number }> = {};
+    for (const cat of VARIABLE_CATEGORIES) {
+      const values = months.map(m => byMonth.get(m)?.[cat] ?? 0);
+      if (values.length < 4) continue;
+      const half = Math.floor(values.length / 2);
+      const firstAvg = values.slice(0, half).reduce((a, b) => a + b, 0) / half;
+      const lastAvg = values.slice(-half).reduce((a, b) => a + b, 0) / half;
+      const pctChange = firstAvg > 0 ? Math.round(((lastAvg - firstAvg) / firstAvg) * 1000) / 10 : 0;
+      out[cat] = { pctChange, recentAvg: lastAvg };
+    }
+    return out;
+  }, [sourceTransactions]);
+
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const categoryBreakdown = isReal && transactions.length === 0 ? EMPTY_PIE : CATEGORY_BREAKDOWN;
   const spendingTrends = isReal && transactions.length === 0 ? EMPTY_TRENDS : SPENDING_TRENDS;
@@ -197,16 +251,16 @@ export const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mb-1">This month</p>
-            <p className="text-white text-2xl md:text-3xl font-black tracking-tight">{formatMoney(currentMonthSpending)}</p>
+            <p className="text-white text-2xl md:text-3xl font-black tracking-tight">{formatMoney(currentMonthSpending, 'EUR')}</p>
             <p className="text-[#9db9a6] text-xs mt-1">Spending in {currentYearMonth}</p>
           </div>
           <div>
             <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-widest mb-1">Normal month (expected)</p>
             <p className="text-white text-2xl md:text-3xl font-black tracking-tight">
-              {normalMonth ? formatMoney(normalMonth.normalMonthTotal) : '—'}
+              {normalMonth ? formatMoney(normalMonth.normalMonthTotal, 'EUR') : '—'}
             </p>
             <p className="text-[#9db9a6] text-xs mt-1">
-              {normalMonth ? `Fixed ${formatMoney(normalMonth.fixedTotal)} + variable ${formatMoney(normalMonth.variableTotal)} · ${normalMonth.monthsUsed} months` : 'Need more data'}
+              {normalMonth ? `Fixed ${formatMoney(normalMonth.fixedTotal, 'EUR')} + variable ${formatMoney(normalMonth.variableTotal, 'EUR')} · ${normalMonth.monthsUsed} months` : 'Need more data'}
             </p>
           </div>
           <div>
@@ -215,8 +269,8 @@ export const Dashboard = () => {
               <>
                 <p className={`text-2xl md:text-3xl font-black tracking-tight ${currentMonthSpending <= normalMonth.normalMonthTotal ? 'text-primary' : 'text-amber-400'}`}>
                   {currentMonthSpending <= normalMonth.normalMonthTotal
-                    ? formatMoney(normalMonth.normalMonthTotal - currentMonthSpending) + ' under'
-                    : formatMoney(currentMonthSpending - normalMonth.normalMonthTotal) + ' over'}
+                    ? formatMoney(normalMonth.normalMonthTotal - currentMonthSpending, 'EUR') + ' under'
+                    : formatMoney(currentMonthSpending - normalMonth.normalMonthTotal, 'EUR') + ' over'}
                 </p>
                 <p className="text-[#9db9a6] text-xs mt-1">vs expected burn</p>
               </>
@@ -230,6 +284,41 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {/* Spending by category – tap a category for the 3 answers (normal / this month / trend) */}
+      <div className="glass-card rounded-2xl border border-white/10 overflow-hidden">
+        <div className="p-6 border-b border-white/5">
+          <h3 className="text-white text-sm font-black uppercase tracking-widest">Spending by category</h3>
+          <p className="text-[#9db9a6] text-xs font-medium mt-1">Tap a category for normal baseline, this month, and trend.</p>
+        </div>
+        <div className="divide-y divide-white/5">
+          {VARIABLE_CATEGORIES.map((cat) => {
+            const baseline = normalMonth?.byCategory[cat] ?? 0;
+            const thisMonth = currentMonthByCategory[cat] ?? 0;
+            const deltaPct = baseline > 0 ? Math.round(((thisMonth - baseline) / baseline) * 1000) / 10 : 0;
+            const label = (CATEGORY_DISPLAY_LABELS as Record<string, string>)[cat] ?? cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className="w-full px-6 py-4 flex items-center justify-between gap-4 text-left hover:bg-white/5 transition-colors"
+              >
+                <span className="text-white font-bold">{label}</span>
+                <div className="flex items-center gap-4">
+                  <span className="text-[#9db9a6] text-sm">Normally {formatMoney(baseline, 'EUR')}/mo</span>
+                  <span className="text-white text-sm font-bold">{formatMoney(thisMonth, 'EUR')} this month</span>
+                  {baseline > 0 && (
+                    <span className={`text-xs font-black px-2 py-0.5 rounded ${deltaPct <= 0 ? 'bg-primary/20 text-primary' : 'bg-amber-500/20 text-amber-400'}`}>
+                      {deltaPct > 0 ? '+' : ''}{deltaPct}%
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl relative overflow-hidden group">
@@ -237,7 +326,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Total Balance</p>
-              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">{formatMoney(totalBalance)}</h3>
+              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">{formatMoney(totalBalance, 'EUR')}</h3>
               <div className="flex items-center gap-2 mt-4 text-primary font-bold text-sm">
                 <span className="material-symbols-outlined text-sm">trending_up</span>
                 <span>{isReal && transactions.length === 0 ? 'Add transactions to see trends' : '+12.5%'} <span className="text-[#9db9a6] font-medium ml-1">vs last month</span></span>
@@ -254,7 +343,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Current month spending</p>
-              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(currentMonthSpending)}</h3>
+              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(currentMonthSpending, 'EUR')}</h3>
               <p className="text-[#9db9a6] text-xs font-medium mt-2">Expenses in {currentYearMonth}</p>
             </div>
             <div className="bg-secondary/20 p-3 rounded-xl">
@@ -268,7 +357,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Average monthly spending</p>
-              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(averageMonthlySpending)}</h3>
+              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(averageMonthlySpending, 'EUR')}</h3>
               <p className="text-[#9db9a6] text-xs font-medium mt-2">Total expenses ÷ months in data</p>
             </div>
             <div className="bg-amber-500/20 p-3 rounded-xl">
@@ -308,7 +397,7 @@ export const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-2xl font-black text-white">{formatMoney(averageMonthlySpending)}</p>
+              <p className="text-2xl font-black text-white">{formatMoney(averageMonthlySpending, 'EUR')}</p>
               <p className="text-[10px] text-[#9db9a6] font-bold uppercase tracking-widest">Avg monthly</p>
             </div>
           </div>
@@ -384,7 +473,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                   <p className={`text-sm font-black ${t.amount > 0 ? 'text-primary' : 'text-white'}`}>
-                    {t.amount > 0 ? `+${formatMoney(t.amount)}` : formatMoney(t.amount)}
+                    {t.amount > 0 ? `+${formatMoney(t.amount, t.currency ?? 'EUR')}` : formatMoney(t.amount, t.currency ?? 'EUR')}
                   </p>
                 </div>
               ))
@@ -420,6 +509,60 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {selectedCategory && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedCategory(null)}>
+          <div className="glass-card rounded-2xl border border-white/10 w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-white/5 flex justify-between items-center">
+              <h3 className="text-white text-lg font-black uppercase tracking-widest">
+                {(CATEGORY_DISPLAY_LABELS as Record<string, string>)[selectedCategory] ?? selectedCategory}
+              </h3>
+              <button type="button" onClick={() => setSelectedCategory(null)} className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#9db9a6] mb-1">Normally we spend…</p>
+                <p className="text-2xl font-black text-white">
+                  {formatMoney(normalMonth?.byCategory[selectedCategory] ?? 0, 'EUR')}/month
+                </p>
+                <p className="text-xs text-[#9db9a6] mt-1">Planning, sanity checks. Median of last 6–9 non-anomalous months.</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#9db9a6] mb-1">This month we are at…</p>
+                <p className="text-xl font-black text-white">
+                  {formatMoney(currentMonthByCategory[selectedCategory] ?? 0, 'EUR')} this month
+                </p>
+                {(normalMonth?.byCategory[selectedCategory] ?? 0) > 0 && (
+                  <p className={`mt-1 text-sm font-bold ${(currentMonthByCategory[selectedCategory] ?? 0) <= (normalMonth?.byCategory[selectedCategory] ?? 0) ? 'text-primary' : 'text-amber-400'}`}>
+                    {(() => {
+                      const base = normalMonth!.byCategory[selectedCategory]!;
+                      const curr = currentMonthByCategory[selectedCategory] ?? 0;
+                      const pct = base > 0 ? Math.round(((curr - base) / base) * 1000) / 10 : 0;
+                      return pct > 0 ? `+${pct}% vs normal` : pct < 0 ? `${pct}% vs normal` : 'Same as normal';
+                    })()}
+                  </p>
+                )}
+                <p className="text-xs text-[#9db9a6] mt-1">Mid-month decisions, behavior correction.</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#9db9a6] mb-1">Over time…</p>
+                {trendByCategory[selectedCategory] != null ? (
+                  <>
+                    <p className={`text-xl font-black ${trendByCategory[selectedCategory].pctChange >= 0 ? 'text-amber-400' : 'text-primary'}`}>
+                      {trendByCategory[selectedCategory].pctChange > 0 ? '+' : ''}{trendByCategory[selectedCategory].pctChange}% over last 6 months
+                    </p>
+                    <p className="text-xs text-[#9db9a6] mt-1">Lifestyle creep, inflation. First half vs second half of period.</p>
+                  </>
+                ) : (
+                  <p className="text-white/80 text-sm">Need more months of data for trend.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

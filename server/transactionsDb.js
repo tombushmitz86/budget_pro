@@ -22,6 +22,8 @@ function coerceCategory(value) {
   return FALLBACK_CATEGORY;
 }
 
+const DEFAULT_CURRENCY = 'EUR';
+
 function rowToTransaction(row) {
   return {
     id: row.id,
@@ -33,7 +35,8 @@ function rowToTransaction(row) {
     icon: row.icon,
     paymentMethod: row.payment_method,
     type: row.type,
-    recurringInterval: row.recurring_interval === 'yearly' || row.recurring_interval === 'monthly' ? row.recurring_interval : undefined,
+    recurringInterval: (row.recurring_interval === 'yearly' || row.recurring_interval === 'monthly' || /^([2-9]|1[0-2])$/.test(row.recurring_interval || '')) ? row.recurring_interval : undefined,
+    currency: (row.currency && ['USD', 'EUR', 'ILS'].includes(row.currency)) ? row.currency : DEFAULT_CURRENCY,
     categorySource: row.category_source ?? undefined,
     categoryConfidence: row.category_confidence != null ? row.category_confidence : undefined,
     categoryFingerprint: row.category_fingerprint ?? undefined,
@@ -41,7 +44,7 @@ function rowToTransaction(row) {
   };
 }
 
-const SELECT_COLS = 'id, merchant, date, category, amount, status, icon, payment_method, type, recurring_interval, category_source, category_confidence, category_fingerprint, matched_rule_id';
+const SELECT_COLS = 'id, merchant, date, category, amount, status, icon, payment_method, type, recurring_interval, currency, category_source, category_confidence, category_fingerprint, matched_rule_id';
 
 export function listTransactions() {
   const db = getDb();
@@ -72,6 +75,7 @@ export function createTransaction(tx) {
     paymentMethod: tx.paymentMethod ?? tx.payment_method ?? '',
     type: tx.type ?? 'one-time',
     recurringInterval: tx.recurringInterval ?? null,
+    currency: (tx.currency && ['USD', 'EUR', 'ILS'].includes(tx.currency)) ? tx.currency : DEFAULT_CURRENCY,
     categorySource: tx.categorySource,
     categoryConfidence: tx.categoryConfidence,
     categoryFingerprint: tx.categoryFingerprint,
@@ -79,8 +83,8 @@ export function createTransaction(tx) {
   };
   applyClassification(toInsert);
   db.prepare(
-    `INSERT INTO transactions (id, merchant, date, category, amount, status, icon, payment_method, type, recurring_interval, category_source, category_confidence, category_fingerprint, matched_rule_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO transactions (id, merchant, date, category, amount, status, icon, payment_method, type, recurring_interval, currency, category_source, category_confidence, category_fingerprint, matched_rule_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     toInsert.id,
     toInsert.merchant,
@@ -92,6 +96,7 @@ export function createTransaction(tx) {
     toInsert.paymentMethod,
     toInsert.type,
     toInsert.recurringInterval,
+    toInsert.currency,
     toInsert.categorySource ?? null,
     toInsert.categoryConfidence ?? null,
     toInsert.categoryFingerprint ?? null,
@@ -118,6 +123,7 @@ export function updateTransaction(id, tx) {
     paymentMethod: tx.paymentMethod ?? tx.payment_method ?? current.paymentMethod,
     type: tx.type ?? current.type,
     recurringInterval: tx.recurringInterval ?? current.recurringInterval,
+    currency: (tx.currency && ['USD', 'EUR', 'ILS'].includes(tx.currency)) ? tx.currency : (current.currency || DEFAULT_CURRENCY),
     categorySource: tx.categorySource ?? current.categorySource,
     categoryConfidence: tx.categoryConfidence ?? current.categoryConfidence,
     categoryFingerprint: tx.categoryFingerprint ?? current.categoryFingerprint,
@@ -134,7 +140,7 @@ export function updateTransaction(id, tx) {
     toSave = { ...toSave, ...txForOverride };
   }
   db.prepare(
-    `UPDATE transactions SET merchant = ?, date = ?, category = ?, amount = ?, status = ?, icon = ?, payment_method = ?, type = ?, recurring_interval = ?,
+    `UPDATE transactions SET merchant = ?, date = ?, category = ?, amount = ?, status = ?, icon = ?, payment_method = ?, type = ?, recurring_interval = ?, currency = ?,
      category_source = ?, category_confidence = ?, category_fingerprint = ?, matched_rule_id = ?
      WHERE id = ?`
   ).run(
@@ -147,6 +153,7 @@ export function updateTransaction(id, tx) {
     toSave.paymentMethod,
     toSave.type,
     toSave.recurringInterval ?? null,
+    toSave.currency ?? DEFAULT_CURRENCY,
     toSave.categorySource ?? null,
     toSave.categoryConfidence ?? null,
     toSave.categoryFingerprint ?? null,

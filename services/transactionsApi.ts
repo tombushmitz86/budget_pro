@@ -49,6 +49,7 @@ export async function createTransaction(tx: Omit<Transaction, 'id'> & { id?: str
       paymentMethod: tx.paymentMethod,
       type: tx.type ?? 'one-time',
       recurringInterval: tx.recurringInterval,
+      currency: tx.currency ?? 'EUR',
       ...(tx.id ? { id: tx.id } : {}),
     }),
   });
@@ -67,7 +68,7 @@ export async function updateTransaction(id: string, tx: Partial<Transaction>): P
       paymentMethod: tx.paymentMethod,
       type: tx.type,
       recurringInterval: tx.recurringInterval,
-      // Classification fields so backend can record merchant override when category changes
+      currency: tx.currency ?? 'EUR',
       categoryFingerprint: tx.categoryFingerprint,
       categorySource: tx.categorySource,
       categoryConfidence: tx.categoryConfidence,
