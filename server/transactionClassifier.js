@@ -330,6 +330,11 @@ function classify(tx) {
  * Mutates tx with category and optional metadata. Returns tx.
  */
 function applyClassification(tx) {
+  // Enforce incoming category when explicitly set (e.g. snapshot/JSON import with "Israel") – skip rule-based classification
+  if (tx.category != null && tx.category !== '' && tx.category !== FALLBACK_CATEGORY) {
+    tx.categorySource = tx.categorySource ?? 'IMPORT';
+    return tx;
+  }
   const result = classify(tx);
   tx.category = result.category;
   tx.categorySource = result.source;

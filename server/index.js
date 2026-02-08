@@ -20,7 +20,7 @@ import { parseXlsxToTransactions, parseBccXlsxToTransactions } from './xlsxImpor
 import { getSettings, updateSettings } from './settingsDb.js';
 import { getCustomCategories, addCustomCategory } from './categoriesDb.js';
 import { listMerchantOverrides } from './merchantOverridesDb.js';
-import { classify, backfillMerchantOverrideStems } from './transactionClassifier.js';
+import { classify, backfillMerchantOverrideStems, VALID_CATEGORIES } from './transactionClassifier.js';
 
 initDb();
 backfillMerchantOverrideStems();
@@ -279,7 +279,8 @@ app.post('/api/transactions/import-xlsx/dry-run', (req, res) => {
   }
 });
 
-// JSON Import: body { transactions: [ { merchant, date, amount, ... } ], paymentMethod?: "..." }. Idempotent: uses id if provided, else stable id from date+time+amount+merchant.
+// JSON Import: body { transactions: [ { merchant, date, amount, category?, ... } ], paymentMethod?: "..." }.
+// Enforces provided category: when each transaction has a category (e.g. "Israel"), it is kept and rule-based classification is skipped.
 function normalizeTxFromJson(tx) {
   const dateStr = tx.date != null ? String(tx.date).trim() : '';
   let dateOnly = dateStr.slice(0, 10);
@@ -325,15 +326,37 @@ app.post('/api/transactions/import-json', (req, res) => {
       }
     }
     const normalized = transactions.map(normalizeTxFromJson).filter((tx) => tx.merchant || tx.amount !== 0);
-    const existingIds = new Set(listTransactions().map((t) => t.id));
-    const toCreate = normalized.filter((tx) => !existingIds.has(tx.id));
+    // Assign a unique id per row so we never hit UNIQUE constraint (same date+amount+merchant in file => same stable id otherwise)
+    const now = Date.now();
+    normalized.forEach((tx, i) => {
+      tx.id = `import-json-${now}-${i}-${Math.random().toString(36).slice(2, 11)}`;
+    });
+    const toCreate = normalized;
+    // Ensure incoming categories (e.g. "Israel" from snapshot) exist as custom categories so they are preserved and displayed
+    const custom = getCustomCategories();
+    const categoriesToAdd = new Set();
+    for (const tx of toCreate) {
+      const c = tx.category;
+      if (c && c !== 'UNCATEGORIZED' && !VALID_CATEGORIES.has(c) && !custom.includes(c)) {
+        categoriesToAdd.add(c);
+      }
+    }
+    for (const c of categoriesToAdd) {
+      addCustomCategory(c);
+    }
     const created = [];
     for (const tx of toCreate) {
       const toInsert = paymentMethodOverride ? { ...tx, paymentMethod: paymentMethodOverride } : tx;
-      const saved = createTransaction(toInsert);
-      created.push(saved);
+      try {
+        const saved = createTransaction(toInsert);
+        created.push(saved);
+      } catch (err) {
+        if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+          // skip duplicate id (should not happen with unique ids above)
+        } else throw err;
+      }
     }
-    const skipped = normalized.length - created.length;
+    const skipped = toCreate.length - created.length;
     res.status(201).json({
       created: created.length,
       skipped,

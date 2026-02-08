@@ -104,8 +104,13 @@ export const Plan = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* 1. Total monthly spendings & 2. Total money saved – summary cards */}
+      {/* Top summary: original → monthly spendings → money saved */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="glass-card rounded-2xl p-6 border border-border-dark flex flex-col gap-2">
+          <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Original fixed spend</p>
+          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(originalTotal)}</p>
+          <p className="text-[#9db9a6] text-xs font-medium">Before any changes</p>
+        </div>
         <div className="glass-card rounded-2xl p-6 border border-border-dark flex flex-col gap-2">
           <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Total monthly spendings</p>
           <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(projectedMonthly)}</p>
@@ -115,11 +120,6 @@ export const Plan = () => {
           <p className="text-primary text-[10px] font-black uppercase tracking-widest">Total money saved</p>
           <p className="text-primary text-3xl font-black leading-tight tracking-tighter">{formatMoney(totalSaved)}</p>
           <p className="text-[#9db9a6] text-xs font-medium">From eliminated or reduced fixed expenses</p>
-        </div>
-        <div className="glass-card rounded-2xl p-6 border border-border-dark flex flex-col gap-2">
-          <p className="text-[#9db9a6] text-[10px] font-black uppercase tracking-widest">Original fixed spend</p>
-          <p className="text-white text-3xl font-black leading-tight tracking-tighter">{formatMoney(originalTotal)}</p>
-          <p className="text-[#9db9a6] text-xs font-medium">Before any changes</p>
         </div>
       </div>
 

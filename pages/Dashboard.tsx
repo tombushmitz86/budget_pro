@@ -49,10 +49,27 @@ export const Dashboard = () => {
     return sum;
   }, [isReal, sourceTransactions, transactions.length]);
 
-  const monthlySpending = useMemo(() => {
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const currentMonthSpending = useMemo(() => {
+    if (isReal && transactions.length === 0) return 0;
+    const expenses = sourceTransactions.filter(t => t.amount < 0 && (t.date || '').startsWith(currentYearMonth));
+    return Math.abs(expenses.reduce((s, t) => s + t.amount, 0));
+  }, [isReal, sourceTransactions, transactions.length, currentYearMonth]);
+
+  const averageMonthlySpending = useMemo(() => {
     if (isReal && transactions.length === 0) return 0;
     const expenses = sourceTransactions.filter(t => t.amount < 0);
-    return Math.abs(expenses.reduce((s, t) => s + t.amount, 0));
+    const total = Math.abs(expenses.reduce((s, t) => s + t.amount, 0));
+    const dates = sourceTransactions.map(t => t.date).filter(Boolean);
+    if (dates.length === 0) return total;
+    const min = dates.reduce((a, b) => (a < b ? a : b), dates[0]);
+    const max = dates.reduce((a, b) => (a > b ? a : b), dates[0]);
+    const [y1, m1] = min.split('-').map(Number);
+    const [y2, m2] = max.split('-').map(Number);
+    const months = Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1);
+    return Math.round((total / months) * 100) / 100;
   }, [isReal, sourceTransactions, transactions.length]);
 
   const categoryBreakdown = isReal && transactions.length === 0 ? EMPTY_PIE : CATEGORY_BREAKDOWN;
@@ -74,7 +91,7 @@ export const Dashboard = () => {
     <div className="flex flex-col gap-8">
       {/* Top Stats */}
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-6 glass-card p-8 rounded-2xl relative overflow-hidden group">
+        <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full -mr-24 -mt-24 blur-3xl group-hover:bg-primary/10 transition-colors"></div>
           <div className="flex justify-between items-start">
             <div>
@@ -91,19 +108,30 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-6 glass-card p-8 rounded-2xl relative overflow-hidden group">
+        <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-48 h-48 bg-secondary/5 rounded-full -mr-24 -mt-24 blur-3xl group-hover:bg-secondary/10 transition-colors"></div>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Monthly Spending</p>
-              <h3 className="text-white text-5xl font-black leading-tight tracking-tighter">{formatMoney(monthlySpending)}</h3>
-              <div className="flex items-center gap-2 mt-4 text-secondary font-bold text-sm">
-                <span className="material-symbols-outlined text-sm">trending_down</span>
-                <span>{isReal && transactions.length === 0 ? 'From database' : '-5.1%'} <span className="text-[#9db9a6] font-medium ml-1">vs average</span></span>
-              </div>
+              <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Current month spending</p>
+              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(currentMonthSpending)}</h3>
+              <p className="text-[#9db9a6] text-xs font-medium mt-2">Expenses in {currentYearMonth}</p>
             </div>
             <div className="bg-secondary/20 p-3 rounded-xl">
-              <span className="material-symbols-outlined text-secondary text-3xl">shopping_cart</span>
+              <span className="material-symbols-outlined text-secondary text-3xl">calendar_month</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full -mr-24 -mt-24 blur-3xl group-hover:bg-amber-500/10 transition-colors"></div>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-[#9db9a6] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Average monthly spending</p>
+              <h3 className="text-white text-4xl font-black leading-tight tracking-tighter">{formatMoney(averageMonthlySpending)}</h3>
+              <p className="text-[#9db9a6] text-xs font-medium mt-2">Total expenses ÷ months in data</p>
+            </div>
+            <div className="bg-amber-500/20 p-3 rounded-xl">
+              <span className="material-symbols-outlined text-amber-400 text-3xl">show_chart</span>
             </div>
           </div>
         </div>
@@ -139,8 +167,8 @@ export const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-2xl font-black text-white">{formatMoney(monthlySpending)}</p>
-              <p className="text-[10px] text-[#9db9a6] font-bold uppercase tracking-widest">Spent</p>
+              <p className="text-2xl font-black text-white">{formatMoney(averageMonthlySpending)}</p>
+              <p className="text-[10px] text-[#9db9a6] font-bold uppercase tracking-widest">Avg monthly</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 mt-8">

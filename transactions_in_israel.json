@@ -1,0 +1,69 @@
+{
+  "paymentMethod": "bank transfer",
+  "transactions": [
+    {
+      "merchant": "Italian Lessons Hadas",
+      "date": "2026-02-08",
+      "amount": -50,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "Phones in Israel",
+      "date": "2026-02-08",
+      "amount": -16.98,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "life insurance for apartment mortage Tom",
+      "date": "2026-02-08",
+      "amount": -9.98,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "apartment insurance Israel Tom",
+      "date": "2026-02-08",
+      "amount": -14.99,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "Keren Ishtalmut Hadas",
+      "date": "2026-02-08",
+      "amount": -400,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "Total Israel Insurence for Hadas",
+      "date": "2026-02-08",
+      "amount": -100,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "Mortage Hadas",
+      "date": "2026-02-08",
+      "amount": -170,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    },
+    {
+      "merchant": "health insurance in Israel tom (Menora)",
+      "date": "2026-02-08",
+      "amount": -50,
+      "type": "recurring",
+      "paymentMethod": "bank transfer",
+      "category": "Israel"
+    }
+  ]
+}

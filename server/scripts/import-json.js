@@ -13,6 +13,7 @@
  *
  * Each transaction must have: merchant, date, amount.
  * Optional: id, category, paymentMethod, type, status, icon.
+ * Provided category is enforced: rule-based classification is skipped so the category in the file (e.g. "Israel") is kept.
  * date can be "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm:ss" (time is used for duplicate detection).
  */
 

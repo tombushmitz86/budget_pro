@@ -43,6 +43,7 @@ export const Transactions = () => {
   // Filters
   const [activeAccount, setActiveAccount] = useState('All');
   const [activeType, setActiveType] = useState<'all' | 'one-time' | 'recurring'>('all');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [showUncategorizedOnly, setShowUncategorizedOnly] = useState(false);
   const [showApplyRulesModal, setShowApplyRulesModal] = useState(false);
   const [applyRulesChanges, setApplyRulesChanges] = useState<ApplyRulesChange[]>([]);
@@ -84,10 +85,11 @@ export const Transactions = () => {
       const matchesSearch = t.merchant.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesAccount = activeAccount === 'All' || t.paymentMethod === activeAccount;
       const matchesType = activeType === 'all' || t.type === activeType;
-      const matchesUncategorized = !showUncategorizedOnly || t.category === 'UNCATEGORIZED';
-      return matchesSearch && matchesAccount && matchesType && matchesUncategorized;
+      const matchesCategory = activeCategory === 'All' || t.category === activeCategory;
+      const matchesUncategorized = activeCategory !== 'All' || !showUncategorizedOnly || t.category === 'UNCATEGORIZED';
+      return matchesSearch && matchesAccount && matchesType && matchesCategory && matchesUncategorized;
     });
-  }, [list, searchQuery, activeAccount, activeType, showUncategorizedOnly]);
+  }, [list, searchQuery, activeAccount, activeType, activeCategory, showUncategorizedOnly]);
 
   const handleSync = async (source: 'Apple' | 'N26') => {
     setSyncStatus(source === 'Apple' ? 'syncing-apple' : 'syncing-n26');
@@ -428,6 +430,24 @@ export const Transactions = () => {
               Uncategorized
             </button>
           </div>
+
+          <div className="h-6 w-px bg-white/10 mx-2"></div>
+
+          <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+            Category:
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-bold text-white focus:ring-1 focus:ring-primary focus:border-primary min-w-[140px]"
+            >
+              <option value="All" className="bg-background-dark">All categories</option>
+              {allCategories.map((c) => (
+                <option key={c} value={c} className="bg-background-dark">
+                  {categoryLabel(c)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
 
