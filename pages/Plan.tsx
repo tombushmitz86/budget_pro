@@ -136,7 +136,7 @@ export const Plan = () => {
         </div>
       </div>
 
-      {/* 3. List of fixed transactions – eliminate or reduce */}
+      {/* List of fixed transactions – eliminate or reduce */}
       <div className="glass-card rounded-2xl border border-border-dark overflow-hidden">
         <div className="p-6 border-b border-border-dark">
           <div className="flex flex-wrap items-center justify-between gap-4">

@@ -1,0 +1,17 @@
+# Production override: single entrypoint on port 80 (nginx serves app + proxies /api).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Then open http://localhost (or your server IP).
+
+services:
+  api:
+    ports: []   # no direct exposure; nginx proxies
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app.nginx
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy

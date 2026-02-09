@@ -1,0 +1,22 @@
+# BudgetPro API (Node + SQLite)
+# Build: docker build -f Dockerfile.api -t budgetpro-api .
+# Run:   docker run -p 3001:3001 -v budgetpro_data:/app/server/data budgetpro-api
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install production deps only (server uses express, cors, better-sqlite3, dotenv, xlsx)
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev
+
+COPY server ./server
+
+# SQLite DB lives in server/data (mount volume at runtime)
+RUN mkdir -p server/data
+
+ENV NODE_ENV=production
+ENV PORT=3001
+EXPOSE 3001
+
+CMD ["node", "server/index.js"]
