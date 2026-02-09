@@ -85,6 +85,21 @@ export async function clearAllTransactions(): Promise<{ deleted: number }> {
   return api<{ deleted: number }>('/api/transactions', { method: 'DELETE' });
 }
 
+/** Import transactions from JSON (e.g. snapshot). Body: { transactions, paymentMethod? }. */
+export async function importJson(
+  transactions: Array<Record<string, unknown>>,
+  paymentMethod?: string
+): Promise<ImportResult> {
+  const body: { transactions: Array<Record<string, unknown>>; paymentMethod?: string } = { transactions };
+  if (paymentMethod != null && String(paymentMethod).trim()) {
+    body.paymentMethod = paymentMethod.trim();
+  }
+  return api<ImportResult>('/api/transactions/import-json', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export type ImportResult = { created: number; skipped: number; transactions: Transaction[] };
 
 export type ImportDryRunResult = {

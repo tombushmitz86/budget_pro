@@ -5,7 +5,7 @@ import { AppSnapshot, PaymentMethod, Currency } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
 import { useN26Connection } from '../context/N26ConnectionContext';
 import { useDataSource } from '../context/DataSourceContext';
-import { clearAllTransactions } from '../services/transactionsApi';
+import { clearAllTransactions, importJson } from '../services/transactionsApi';
 
 export const Settings = () => {
   const { currency, setCurrency } = useCurrency();
@@ -28,6 +28,9 @@ export const Settings = () => {
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDump = () => {
     const snapshot: AppSnapshot = {
@@ -79,19 +82,63 @@ export const Settings = () => {
     setTimeout(() => setShowSuccess(null), 3000);
   };
 
-  const handleImport = () => {
+  const applySnapshot = async (parsed: AppSnapshot) => {
+    if (!parsed.transactions || !parsed.paymentMethods) throw new Error("Invalid format");
+    setMethods(parsed.paymentMethods);
+    if (dataSourceMode === 'real') {
+      await clearAllTransactions();
+      await importJson(parsed.transactions);
+    }
+  };
+
+  const handleImport = async () => {
+    setImportError(null);
     try {
       const parsed = JSON.parse(importText) as AppSnapshot;
-      if (!parsed.transactions || !parsed.paymentMethods) throw new Error("Invalid format");
-      
-      console.log("Importing:", parsed);
-      setMethods(parsed.paymentMethods);
+      setImportLoading(true);
+      await applySnapshot(parsed);
       setImportText('');
-      setShowSuccess('Ledger data synchronized successfully');
-      setTimeout(() => setShowSuccess(null), 3000);
+      setShowSuccess(
+        dataSourceMode === 'real'
+          ? `Ledger synchronized: ${parsed.transactions.length} transactions and payment methods restored`
+          : 'Payment methods restored. Switch to Real data and import again to restore transactions.'
+      );
+      setTimeout(() => setShowSuccess(null), 4000);
     } catch (e) {
-      alert("Invalid JSON snapshot provided.");
+      const msg = e instanceof Error ? e.message : "Invalid JSON snapshot provided.";
+      setImportError(msg);
+    } finally {
+      setImportLoading(false);
     }
+  };
+
+  const handleImportFromFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const text = reader.result as string;
+        const parsed = JSON.parse(text) as AppSnapshot;
+        setImportLoading(true);
+        await applySnapshot(parsed);
+        setShowSuccess(
+          dataSourceMode === 'real'
+            ? `Ledger synchronized: ${parsed.transactions.length} transactions and payment methods restored`
+            : 'Payment methods restored. Switch to Real data and import again to restore transactions.'
+        );
+        setTimeout(() => setShowSuccess(null), 4000);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Invalid JSON snapshot in file.";
+        setImportError(msg);
+      } finally {
+        setImportLoading(false);
+      }
+    };
+    reader.onerror = () => setImportError("Failed to read file.");
+    reader.readAsText(file, 'utf-8');
   };
 
   const handleAddMethod = (e: React.FormEvent) => {
@@ -437,7 +484,27 @@ export const Settings = () => {
           <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-6">
             <div>
               <p className="text-white font-black text-sm uppercase italic mb-2">Import Snapshot</p>
-              <p className="text-gray-500 text-xs leading-relaxed">Restore your entire ecosystem from a previous export. Warning: This will override current session data.</p>
+              <p className="text-gray-500 text-xs leading-relaxed">Restore your entire ecosystem from a previous export. Paste JSON below or choose a file. With Real data, existing transactions are cleared first.</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFromFile}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importLoading}
+              className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-lg">folder_open</span>
+              Choose JSON file…
+            </button>
+            <div className="relative">
+              <div className="absolute left-0 right-0 -top-1 h-px bg-white/5" />
+              <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest text-center">or paste below</p>
             </div>
             <textarea 
               value={importText}
@@ -445,13 +512,20 @@ export const Settings = () => {
               placeholder="Paste snapshot JSON here..."
               className="w-full h-24 bg-black/40 border border-white/5 rounded-xl p-4 text-[10px] font-mono text-primary placeholder:text-gray-700 focus:ring-1 focus:ring-primary/30 transition-all resize-none"
             />
+            {importError && (
+              <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest">{importError}</p>
+            )}
             <button 
               onClick={handleImport}
-              disabled={!importText}
+              disabled={!importText || importLoading}
               className="w-full py-4 rounded-2xl bg-primary text-background-dark text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-lg">upload</span>
-              Synchronize Ledger
+              {importLoading ? (
+                <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+              ) : (
+                <span className="material-symbols-outlined text-lg">upload</span>
+              )}
+              {importLoading ? 'Importing…' : 'Synchronize Ledger'}
             </button>
           </div>
         </div>
