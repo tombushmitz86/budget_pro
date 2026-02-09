@@ -52,6 +52,29 @@ Data is stored in the Docker volume `budgetpro_data`. To wipe data and start cle
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v
 ```
 
+## Run without Docker (e.g. Ultra.cc)
+
+If you can’t run Docker (e.g. on Ultra.cc), run the API and app on a single port:
+
+```bash
+./scripts/run-without-docker.sh
+```
+
+This installs deps, builds the frontend (with same-origin `/api`), then starts the server on **http://0.0.0.0:3000**. Open **http://localhost:3000** locally or **http://YOUR_ULTRA_CC_HOST:3000** from elsewhere.
+
+To use another port:
+
+```bash
+PORT=8080 ./scripts/run-without-docker.sh
+```
+
+Or build once and start manually:
+
+```bash
+npm ci && VITE_API_URL= npm run build
+SERVE_APP=1 HOST=0.0.0.0 PORT=3000 npm start
+```
+
 ## Optional env
 
 - **VITE_API_URL** – Set when building the default (non-nginx) app image if the API is at another URL (e.g. `https://api.example.com`). Not used in prod stack (nginx proxies `/api`).

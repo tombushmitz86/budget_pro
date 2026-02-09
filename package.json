@@ -10,7 +10,8 @@
     "server": "node server/index.js",
     "dev:all": "concurrently -n api,app -c cyan,green \"npm run server\" \"npm run dev\"",
     "test": "node --test server/**/*.test.js",
-    "import-json": "node server/scripts/import-json.js"
+    "import-json": "node server/scripts/import-json.js",
+    "start": "node server/index.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.6.0",

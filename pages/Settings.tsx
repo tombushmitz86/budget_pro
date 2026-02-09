@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { TRANSACTIONS, BUDGETS, ASSETS, PAYMENT_METHODS } from '../constants';
 import { AppSnapshot, PaymentMethod, Currency } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
@@ -224,7 +224,7 @@ export const Settings = () => {
       </section>
 
       {/* N26 account */}
-      <section className="space-y-6">
+      <section className="space-y-6" id="n26-account">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-[#36a18b]/10 flex items-center justify-center text-[#36a18b]">
             <span className="material-symbols-outlined">account_balance</span>
@@ -304,6 +304,45 @@ export const Settings = () => {
           </div>
         </div>
       )}
+
+      {/* Sync from sources – same button design as before (moved from Transactions) */}
+      <section className="space-y-6" id="sync-sources">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-[#9db9a6]">
+            <span className="material-symbols-outlined">sync</span>
+          </div>
+          <h2 className="text-white text-xl font-black uppercase tracking-widest italic">Sync transactions</h2>
+        </div>
+        <p className="text-[#9db9a6] text-xs leading-relaxed">
+          Connect accounts above, then sync or import from the Transactions page.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {n26Connected ? (
+            <Link
+              to="/transactions"
+              className="group relative flex items-center gap-3 px-6 py-3 bg-[#36a18b] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#36a18b]/20"
+            >
+              <span className="material-symbols-outlined text-lg">account_balance</span>
+              <span>Sync N26</span>
+            </Link>
+          ) : (
+            <a
+              href="#n26-account"
+              className="flex items-center gap-3 px-6 py-3 bg-white/5 text-[#9db9a6] rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] border border-white/10 hover:bg-white/10 hover:text-white transition-all"
+            >
+              <span className="material-symbols-outlined text-lg">link_off</span>
+              Connect N26
+            </a>
+          )}
+          <Link
+            to="/transactions"
+            className="group relative flex items-center gap-3 px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95"
+          >
+            <span className="material-symbols-outlined text-lg">apple</span>
+            <span>Sync Apple Pay</span>
+          </Link>
+        </div>
+      </section>
 
       {/* Display currency */}
       <section className="space-y-6">

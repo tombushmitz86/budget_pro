@@ -226,9 +226,63 @@ export const Dashboard = () => {
   }, [sourceTransactions]);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTrendCategory, setSelectedTrendCategory] = useState<string>('All');
+  const [trendViewMode, setTrendViewMode] = useState<'monthly' | 'trend'>('monthly');
 
+  const spendingTrendsChartData = useMemo(() => {
+    const expenses = sourceTransactions.filter(t => t.amount < 0 && t.type !== 'recurring');
+    const byMonth = new Map<string, { total: number; byCat: Record<string, number> }>();
+    expenses.forEach(t => {
+      const ym = toYearMonth(t.date);
+      if (!ym) return;
+      if (!byMonth.has(ym)) byMonth.set(ym, { total: 0, byCat: {} });
+      const row = byMonth.get(ym)!;
+      const cat = t.category || 'UNCATEGORIZED';
+      const abs = Math.abs(t.amount);
+      row.total += abs;
+      row.byCat[cat] = (row.byCat[cat] ?? 0) + abs;
+    });
+    const months = [...byMonth.keys()].sort().slice(-12);
+    return months.map(ym => {
+      const row = byMonth.get(ym)!;
+      const [y, m] = ym.split('-').map(Number);
+      const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const value = selectedTrendCategory === 'All'
+        ? Math.round(row.total * 100) / 100
+        : Math.round((row.byCat[selectedTrendCategory] ?? 0) * 100) / 100;
+      return { name: monthLabel, value };
+    });
+  }, [sourceTransactions, selectedTrendCategory]);
+
+  const spendingTrendOriginalData = useMemo(() => {
+    const expenses = sourceTransactions.filter(t => t.amount < 0 && t.type !== 'recurring');
+    const byDay = new Map<string, number>();
+    const today = new Date();
+    for (let d = 6; d >= 0; d--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - d);
+      const key = date.toISOString().slice(0, 10);
+      byDay.set(key, 0);
+    }
+    expenses.forEach(t => {
+      const key = (t.date || '').slice(0, 10);
+      if (!key || !byDay.has(key)) return;
+      byDay.set(key, (byDay.get(key) ?? 0) + Math.abs(t.amount));
+    });
+    return [...byDay.keys()].sort().map(dateStr => {
+      const d = new Date(dateStr);
+      const label = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+      return { name: label, value: Math.round((byDay.get(dateStr) ?? 0) * 100) / 100 };
+    });
+  }, [sourceTransactions]);
+
+  const hasRealTrends = isReal && transactions.length > 0 && spendingTrendsChartData.length > 0;
+  const hasRealOriginalTrend = isReal && transactions.length > 0 && spendingTrendOriginalData.length > 0;
   const categoryBreakdown = isReal && transactions.length === 0 ? EMPTY_PIE : CATEGORY_BREAKDOWN;
-  const spendingTrends = isReal && transactions.length === 0 ? EMPTY_TRENDS : SPENDING_TRENDS;
+  const spendingTrends =
+    trendViewMode === 'monthly'
+      ? (hasRealTrends ? spendingTrendsChartData : (isReal && transactions.length === 0 ? EMPTY_TRENDS : SPENDING_TRENDS))
+      : (hasRealOriginalTrend ? spendingTrendOriginalData : SPENDING_TRENDS);
   const recentTransactions = sourceTransactions.slice(0, 5);
 
   if (loading) {
@@ -412,11 +466,40 @@ export const Dashboard = () => {
         </div>
 
         <div className="col-span-12 lg:col-span-4 glass-card p-8 rounded-2xl flex flex-col min-h-[450px]">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <h4 className="text-white text-sm font-black uppercase tracking-widest">Spending Trends</h4>
-            <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
-              <button className="px-3 py-1 text-[10px] font-black rounded-md bg-primary text-background-dark">30D</button>
-              <button className="px-3 py-1 text-[10px] font-black rounded-md text-[#9db9a6] hover:text-white">90D</button>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setTrendViewMode('monthly')}
+                  className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all ${trendViewMode === 'monthly' ? 'bg-primary text-background-dark' : 'text-[#9db9a6] hover:text-white'}`}
+                >
+                  By month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendViewMode('trend')}
+                  className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all ${trendViewMode === 'trend' ? 'bg-primary text-background-dark' : 'text-[#9db9a6] hover:text-white'}`}
+                >
+                  Last 7 days
+                </button>
+              </div>
+              {trendViewMode === 'monthly' && hasRealTrends && (
+                <select
+                  value={selectedTrendCategory}
+                  onChange={(e) => setSelectedTrendCategory(e.target.value)}
+                  className="bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-[10px] font-bold text-white focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="All" className="bg-background-dark">All categories</option>
+                  {VARIABLE_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat} className="bg-background-dark">
+                      {(CATEGORY_DISPLAY_LABELS as Record<string, string>)[cat] ?? cat}
+                    </option>
+                  ))}
+                  <option value="UNCATEGORIZED" className="bg-background-dark">Uncategorized</option>
+                </select>
+              )}
             </div>
           </div>
           <div className="flex-1 mt-4">
@@ -431,11 +514,12 @@ export const Dashboard = () => {
                 />
                 <Tooltip 
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                  contentStyle={{ backgroundColor: '#102216', border: '1px solid #28392e', borderRadius: '12px' }}
+                  contentStyle={{ backgroundColor: '#f1f5f0', border: '1px solid #c5d0c9', borderRadius: '12px', color: '#1a1a1a' }}
+                  formatter={(value: number) => [formatMoney(value, 'EUR'), '']}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                   {spendingTrends.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 3 ? '#13ec5b' : '#13ec5b44'} />
+                    <Cell key={`cell-${index}`} fill={(hasRealTrends && trendViewMode === 'monthly') || (hasRealOriginalTrend && trendViewMode === 'trend') ? '#13ec5b' : (index === 3 ? '#13ec5b' : '#13ec5b44')} />
                   ))}
                 </Bar>
               </BarChart>

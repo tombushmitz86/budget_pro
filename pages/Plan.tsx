@@ -1,11 +1,14 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { FIXED_MONTHLY_EXPENSES } from '../constants';
 import type { Category, Currency } from '../types';
 import { CATEGORY_DISPLAY_LABELS } from '../constants';
 import { useCurrency } from '../context/CurrencyContext';
 import { useDataSource } from '../context/DataSourceContext';
 import { fetchTransactions } from '../services/transactionsApi';
+
+const PLAN_PIE_COLORS = ['#13ec5b', '#3b82f6', '#fa5538', '#a855f7', '#f59e0b', '#10b981', '#ec4899', '#6366f1', '#14b8a6', '#84cc16'];
+const EMPTY_PIE = [{ name: 'No spending', value: 100, color: '#28392e' }];
 
 type PlanStatus = 'active' | 'eliminated' | 'reduced';
 
@@ -74,23 +77,42 @@ export const Plan = () => {
     return list;
   }, [items, fixedSortBy]);
 
-  const { originalTotal, projectedMonthly, totalSaved } = useMemo(() => {
+  const { originalTotal, projectedMonthly, totalSaved, categoryBreakdown } = useMemo(() => {
     let projected = 0;
     let saved = 0;
+    const byCategory: Record<string, number> = {};
     for (const item of items) {
       const absOriginal = Math.abs(item.amount);
+      let projectedItem = 0;
       if (item.status === 'eliminated') {
         saved += absOriginal;
       } else if (item.status === 'reduced' && item.reducedAmount != null) {
         const absReduced = Math.abs(item.reducedAmount);
+        projectedItem = absReduced;
         projected += absReduced;
         saved += absOriginal - absReduced;
       } else {
+        projectedItem = absOriginal;
         projected += absOriginal;
       }
+      const cat = item.category || 'UNCATEGORIZED';
+      byCategory[cat] = (byCategory[cat] ?? 0) + projectedItem;
     }
     const original = items.reduce((s, i) => s + Math.abs(i.amount), 0);
-    return { originalTotal: original, projectedMonthly: projected, totalSaved: saved };
+    const breakdown = Object.entries(byCategory)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, value], i) => ({
+        name: (CATEGORY_DISPLAY_LABELS as Record<string, string>)[cat] ?? cat,
+        value: Math.round(value * 100) / 100,
+        color: PLAN_PIE_COLORS[i % PLAN_PIE_COLORS.length],
+      }));
+    return {
+      originalTotal: original,
+      projectedMonthly: projected,
+      totalSaved: saved,
+      categoryBreakdown: breakdown.length > 0 ? breakdown : EMPTY_PIE,
+    };
   }, [items]);
 
   const updateItem = (id: string, update: Partial<PlanItem>) => {
@@ -133,6 +155,52 @@ export const Plan = () => {
           <p className="text-primary text-[10px] font-black uppercase tracking-widest">Total money saved</p>
           <p className="text-primary text-3xl font-black leading-tight tracking-tighter">{formatMoney(totalSaved, 'EUR')}</p>
           <p className="text-[#9db9a6] text-xs font-medium">From eliminated or reduced fixed expenses</p>
+        </div>
+      </div>
+
+      {/* Category breakdown pie – updates with plan (eliminate/reduce) */}
+      <div className="glass-card rounded-2xl border border-border-dark overflow-hidden p-6">
+        <h3 className="text-white text-sm font-black uppercase tracking-widest mb-4">Category breakdown (after plan)</h3>
+        <p className="text-[#9db9a6] text-xs font-medium mb-4">Projected spending by category. Eliminate or reduce items above to see the chart update.</p>
+        <div className="flex flex-col md:flex-row gap-6 items-center">
+          <div className="flex-1 w-full min-h-[260px] flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={categoryBreakdown}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={95}
+                  paddingAngle={categoryBreakdown.length > 1 ? 4 : 0}
+                  dataKey="value"
+                >
+                  {categoryBreakdown.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#f1f5f0', border: '1px solid #c5d0c9', borderRadius: '12px', fontSize: '12px', color: '#1a1a1a' }}
+                  itemStyle={{ color: '#1a1a1a' }}
+                  formatter={(value: number, _name, props) => [formatMoney(value, 'EUR'), (props?.payload as { name?: string })?.name ?? '']}
+                  labelFormatter={(label) => label}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-col gap-2 min-w-[180px]">
+            {categoryBreakdown.length > 0 && categoryBreakdown[0].name !== EMPTY_PIE[0].name ? (
+              categoryBreakdown.map((cat) => (
+                <div key={cat.name} className="flex items-center gap-2">
+                  <div className="size-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                  <span className="text-[#9db9a6] text-xs font-bold truncate">{cat.name}</span>
+                  <span className="text-white text-xs font-black ml-auto">{formatMoney(cat.value, 'EUR')}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-[#9db9a6] text-xs">No projected spending</p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -2,13 +2,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TRANSACTIONS, PAYMENT_METHODS, TRANSACTION_CATEGORIES, CATEGORY_DISPLAY_LABELS } from '../constants';
 import { Transaction, PaymentMethod, Category, RecurringInterval } from '../types';
-import { intelligence } from '../services/intelligenceService';
 import { useCurrency } from '../context/CurrencyContext';
-import { useN26Connection } from '../context/N26ConnectionContext';
 import { useDataSource } from '../context/DataSourceContext';
 import { fetchTransactions, createTransaction, updateTransaction, deleteTransaction, importCsv, importXlsx, importCsvDryRun, importXlsxDryRun, applyRulesDryRun, type ApplyRulesChange, type ImportDryRunResult } from '../services/transactionsApi';
 import { getCustomCategories, addCategory } from '../services/categoriesApi';
-import { Link } from 'react-router-dom';
 
 const ADD_CATEGORY_VALUE = '__add_category__';
 
@@ -22,11 +19,9 @@ function getEveryNMonths(interval: string): number {
 
 export const Transactions = () => {
   const { formatMoney, currency } = useCurrency();
-  const { connected: n26Connected } = useN26Connection();
   const { isReal } = useDataSource();
   const [list, setList] = useState<Transaction[]>(() => (isReal ? [] : TRANSACTIONS));
   const [listLoading, setListLoading] = useState(isReal);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing-apple' | 'syncing-n26'>('idle');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,17 +93,6 @@ export const Transactions = () => {
       return matchesSearch && matchesAccount && matchesType && matchesCategory && matchesUncategorized;
     });
   }, [list, searchQuery, activeAccount, activeType, activeCategory, showUncategorizedOnly]);
-
-  const handleSync = async (source: 'Apple' | 'N26') => {
-    setSyncStatus(source === 'Apple' ? 'syncing-apple' : 'syncing-n26');
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const newItems = await intelligence.generateSyncTransactions(source);
-    if (newItems.length > 0) {
-      setList(prev => [...newItems, ...prev]);
-    }
-    setSyncStatus('idle');
-  };
 
   const handleUpdateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,42 +305,6 @@ export const Transactions = () => {
         </div>
         
         <div className="flex flex-wrap gap-3">
-          {n26Connected ? (
-            <button 
-              onClick={() => handleSync('N26')}
-              disabled={syncStatus !== 'idle'}
-              className="group relative flex items-center gap-3 px-6 py-3 bg-[#36a18b] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-[#36a18b]/20"
-            >
-              {syncStatus === 'syncing-n26' ? (
-                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <span className="material-symbols-outlined text-lg">account_balance</span>
-              )}
-              <span>{syncStatus === 'syncing-n26' ? 'Syncing…' : 'Sync N26'}</span>
-            </button>
-          ) : (
-            <Link
-              to="/settings"
-              className="flex items-center gap-3 px-6 py-3 bg-white/5 text-[#9db9a6] rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] border border-white/10 hover:bg-white/10 hover:text-white transition-all"
-            >
-              <span className="material-symbols-outlined text-lg">link_off</span>
-              Connect N26 in Settings
-            </Link>
-          )}
-
-          <button 
-            onClick={() => handleSync('Apple')}
-            disabled={syncStatus !== 'idle'}
-            className="group relative flex items-center gap-3 px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-          >
-            {syncStatus === 'syncing-apple' ? (
-              <div className="size-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <span className="material-symbols-outlined text-lg">apple</span>
-            )}
-            <span>{syncStatus === 'syncing-apple' ? 'Authorizing...' : 'Sync Apple Pay'}</span>
-          </button>
-
           <button
             type="button"
             onClick={() => setShowAddModal(true)}

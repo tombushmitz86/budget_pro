@@ -2,11 +2,19 @@
  * BudgetPro API server: N26 connection, transactions DB.
  * Run: node server/index.js (or npm run server)
  * Loads .env from project root if present.
+ * With SERVE_APP=1: also serves the built frontend from dist/ (single port, no Docker).
  */
 
 import 'dotenv/config';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DIST_DIR = path.join(__dirname, '..', 'dist');
+const SERVE_APP = process.env.SERVE_APP === '1' || process.env.SERVE_APP === 'true';
 import {
   exchangeCodeForTokens,
   getConnectionStatus,
@@ -445,10 +453,23 @@ app.post('/api/transactions/import-xlsx', (req, res) => {
   }
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`BudgetPro API listening on http://localhost:${PORT}`);
+// Optional: serve built frontend (single port, no Docker). Use SERVE_APP=1 and run from project root.
+if (SERVE_APP && fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR, { index: false }));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(DIST_DIR, 'index.html'));
+  });
+  console.log('Serving app from dist/ (SERVE_APP=1)');
+}
+
+const HOST = process.env.HOST || '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`BudgetPro API listening on http://${HOST}:${PORT}`);
   console.log(`  Health: http://localhost:${PORT}/api/health`);
   console.log(`  Merchant rules: http://localhost:${PORT}/api/merchant_overrides`);
+  if (SERVE_APP && fs.existsSync(DIST_DIR)) {
+    console.log(`  App: http://localhost:${PORT}`);
+  }
   if (!n26IsConfigured()) {
     console.warn('N26 not configured: set N26_TOKEN_URL, N26_CLIENT_ID, N26_CLIENT_SECRET for token exchange.');
   }
